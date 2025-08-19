@@ -130,7 +130,18 @@ func verifySecretsDirectoryExists(t *testing.T, secretsDir string) {
 func verifyAgeKeyExists(t *testing.T, secretsDir string) {
 	t.Helper()
 
-	keyPath := filepath.Join(secretsDir, "key.txt")
+	pattern := filepath.Join(secretsDir, "key-*.txt")
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		t.Errorf("failed to search for age key files: %v", err)
+		return
+	}
+	if len(matches) == 0 {
+		t.Errorf("no age key files found matching pattern %s", pattern)
+		return
+	}
+	// Verify at least one key file exists and is readable
+	keyPath := matches[0]
 	if _, err := os.Stat(keyPath); os.IsNotExist(err) {
 		t.Errorf("age key file was not created at %s", keyPath)
 	}

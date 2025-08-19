@@ -187,7 +187,7 @@ func TestCheckKeyExpiry_Warnings(t *testing.T) {
 	}
 
 	// Check key expiry
-	err := service.CheckKeyExpiry()
+	err := service.CheckKeyExpiry(false)
 	if err != nil {
 		t.Fatalf("CheckKeyExpiry failed: %v", err)
 	}

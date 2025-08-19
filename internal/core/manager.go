@@ -1,6 +1,7 @@
 package core
 
 import (
+	"crypto/sha1" //nolint:gosec // SHA-1 used for non-cryptographic filename hashing only
 	"fmt"
 	"io"
 	"os"
@@ -34,7 +35,8 @@ func (s *SopsManager) Init(force bool) error {
 		return err
 	}
 
-	if err := s.setupEnvironment(); err != nil {
+	secretsDirExisted, err := s.setupEnvironment()
+	if err != nil {
 		return err
 	}
 
@@ -53,7 +55,7 @@ func (s *SopsManager) Init(force bool) error {
 		return fmt.Errorf("failed to create manifest: %w", err)
 	}
 
-	s.printInitializationSuccess(force, memberID)
+	s.printInitializationSuccess(force, memberID, publicKey, secretsDirExisted)
 	s.showSOPSCoexistenceAdvice()
 	s.printNextSteps()
 
@@ -61,6 +63,7 @@ func (s *SopsManager) Init(force bool) error {
 }
 
 func (s *SopsManager) checkInitialization(force bool) error {
+	// Check file existence (can be overridden by --force)
 	if !force {
 		if _, err := os.Stat(s.configPath); err == nil {
 			return fmt.Errorf("sopsistry.yaml already exists (use --force to overwrite)")
@@ -69,30 +72,119 @@ func (s *SopsManager) checkInitialization(force bool) error {
 	return nil
 }
 
-func (s *SopsManager) setupEnvironment() error {
+// keyHashFromPrivateKey computes first 5 chars of SHA-1 hash for private key content
+func keyHashFromPrivateKey(privateKeyContent string) string {
+	hash := sha1.Sum([]byte(privateKeyContent)) //nolint:gosec // SHA-1 used for non-cryptographic filename hashing only
+	return fmt.Sprintf("%.5x", hash)
+}
+
+// keyPathForPrivateKey returns the file path for a given private key content
+func (s *SopsManager) keyPathForPrivateKey(privateKeyContent string) string {
+	hash := keyHashFromPrivateKey(privateKeyContent)
+	return filepath.Join(s.secretsDir, "key-"+hash+".txt")
+}
+
+func (s *SopsManager) setupEnvironment() (bool, error) {
+	// Check if .secrets directory already exists
+	secretsDirExisted := false
+	if _, err := os.Stat(s.secretsDir); err == nil {
+		secretsDirExisted = true
+	}
+
 	if err := os.MkdirAll(s.secretsDir, 0o700); err != nil {
-		return fmt.Errorf("failed to create .secrets directory: %w", err)
+		return false, fmt.Errorf("failed to create .secrets directory: %w", err)
 	}
 
 	if err := s.ensureGitignore(); err != nil {
-		return fmt.Errorf("failed to update .gitignore: %w", err)
+		return false, fmt.Errorf("failed to update .gitignore: %w", err)
 	}
 
-	return nil
+	return secretsDirExisted, nil
 }
 
 func (s *SopsManager) setupAgeKey() (string, error) {
-	keyPath := filepath.Join(s.secretsDir, "key.txt")
-
-	if _, err := os.Stat(keyPath); err != nil {
-		return s.generateAgeKey(keyPath)
+	// Check for existing keys using pattern
+	existingKey, publicKey, err := s.findExistingKey()
+	if err != nil {
+		return "", err
 	}
 
-	_, _ = fmt.Fprintf(s.output, "Using existing age key at %s\n", keyPath)
+	if existingKey != "" {
+		_, _ = fmt.Fprintf(s.output, "Using existing age key at %s\n", existingKey)
+		return publicKey, nil
+	}
+
+	// No existing key found, generate new one
+	return s.generateNewAgeKey()
+}
+
+// findExistingKey looks for any existing key file and returns path + public key
+func (s *SopsManager) findExistingKey() (string, string, error) {
+	pattern := filepath.Join(s.secretsDir, "key-*.txt")
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to search for existing keys: %w", err)
+	}
+
+	if len(matches) == 0 {
+		return "", "", nil // No existing keys
+	}
+
+	// Use first key found (in practice should be only one for current user)
+	keyPath := matches[0]
 	publicKey, err := s.getPublicKeyFromPrivateKey(keyPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to extract public key: %w", err)
+		return "", "", fmt.Errorf("failed to extract public key from %s: %w", keyPath, err)
 	}
+
+	return keyPath, publicKey, nil
+}
+
+// findKeyForPublicKey searches for the private key file that corresponds to the given public key
+func (s *SopsManager) findKeyForPublicKey(targetPublicKey string) (string, error) {
+	pattern := filepath.Join(s.secretsDir, "key-*.txt")
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return "", fmt.Errorf("failed to search for key files: %w", err)
+	}
+
+	for _, keyPath := range matches {
+		publicKey, err := s.getPublicKeyFromPrivateKey(keyPath)
+		if err != nil {
+			continue // Skip corrupted/invalid key files
+		}
+
+		if publicKey == targetPublicKey {
+			return keyPath, nil
+		}
+	}
+
+	return "", fmt.Errorf("no private key found for public key %s", targetPublicKey)
+}
+
+// generateNewAgeKey creates a new age key with private-key-based naming
+func (s *SopsManager) generateNewAgeKey() (string, error) {
+	// Generate key to temporary location first
+	tempKeyPath := filepath.Join(s.secretsDir, "temp-key.txt")
+	publicKey, err := s.generateAgeKey(tempKeyPath)
+	if err != nil {
+		return "", err
+	}
+
+	// Read private key content for hashing
+	privateKeyContent, err := os.ReadFile(tempKeyPath) //nolint:gosec // Reading temporary key file we just created
+	if err != nil {
+		_ = os.Remove(tempKeyPath)
+		return "", fmt.Errorf("failed to read generated private key: %w", err)
+	}
+
+	// Move to private-key-based name
+	finalKeyPath := s.keyPathForPrivateKey(string(privateKeyContent))
+	if err := os.Rename(tempKeyPath, finalKeyPath); err != nil {
+		_ = os.Remove(tempKeyPath) // Cleanup temp file
+		return "", fmt.Errorf("failed to rename key file: %w", err)
+	}
+
 	return publicKey, nil
 }
 
@@ -132,18 +224,23 @@ func (s *SopsManager) createInitialManifest(memberID, publicKey string, created 
 	}
 }
 
-func (s *SopsManager) printInitializationSuccess(force bool, memberID string) {
+func (s *SopsManager) printInitializationSuccess(force bool, memberID, publicKey string, secretsDirExisted bool) {
 	if force {
 		_, _ = fmt.Fprintf(s.output, "Re-initialized SOPS team configuration (force mode)\n")
 	} else {
 		_, _ = fmt.Fprintf(s.output, "Initialized SOPS team configuration\n")
 	}
 	_, _ = fmt.Fprintf(s.output, "📄  Created %s\n", s.configPath)
-	_, _ = fmt.Fprintf(s.output, "🔒  Created %s directory\n", s.secretsDir)
 
-	keyPath := filepath.Join(s.secretsDir, "key.txt")
-	if _, err := os.Stat(keyPath); err == nil {
-		_, _ = fmt.Fprintf(s.output, "🗝️   Using existing age key at %s\n", keyPath)
+	if secretsDirExisted {
+		_, _ = fmt.Fprintf(s.output, "🔒  Using existing %s directory\n", s.secretsDir)
+	} else {
+		_, _ = fmt.Fprintf(s.output, "🔒  Created %s directory\n", s.secretsDir)
+	}
+
+	// Show the final key name (safe to display as it's derived from private key)
+	if keyPath, err := s.findKeyForPublicKey(publicKey); err == nil {
+		_, _ = fmt.Fprintf(s.output, "🗝️   Age key: %s\n", filepath.Base(keyPath))
 	}
 	_, _ = fmt.Fprintf(s.output, "🧑‍💻  Added %s as team member\n", memberID)
 }
@@ -158,7 +255,7 @@ func (s *SopsManager) showSOPSCoexistenceAdvice() {
 
 func (s *SopsManager) printNextSteps() {
 	_, _ = fmt.Fprintf(s.output, "\n🚀 Next steps:\n")
-	_, _ = fmt.Fprintf(s.output, "1. Encrypt files: sistry encrypt <file> or sistry encrypt --regex '^(password|key)' <file>\n")
+	_, _ = fmt.Fprintf(s.output, "1. Encrypt files: sistry encrypt <file> or sistry encrypt --[i]regex '^(password|key)' <file>\n")
 	_, _ = fmt.Fprintf(s.output, "2. Add more team members: sistry add-member <id> --key <age-pubkey>\n")
 	_, _ = fmt.Fprintf(s.output, "3. Review planned changes: sistry plan\n")
 	_, _ = fmt.Fprintf(s.output, "4. Apply changes: sistry apply\n")
@@ -346,7 +443,14 @@ func (s *SopsManager) EncryptFile(filePath string, inPlace bool, regex string) e
 
 // DecryptFile decrypts a SOPS-encrypted file
 func (s *SopsManager) DecryptFile(filePath string, inPlace bool) error {
-	keyPath := filepath.Join(s.secretsDir, "key.txt")
+	// Find current user's key
+	keyPath, _, err := s.findExistingKey()
+	if err != nil {
+		return fmt.Errorf("failed to find decryption key: %w", err)
+	}
+	if keyPath == "" {
+		return fmt.Errorf("no private key found in %s", s.secretsDir)
+	}
 
 	decryptor := NewDecryptor(s.sopsPath)
 	return decryptor.DecryptFile(filePath, keyPath, inPlace)
@@ -379,7 +483,11 @@ func (s *SopsManager) RotateKey(force bool) error {
 		return err
 	}
 
-	keyPath := filepath.Join(s.secretsDir, "key.txt")
+	// Find current user's key using their public key from manifest
+	keyPath, err := s.findKeyForPublicKey(currentMember.AgeKey)
+	if err != nil {
+		return fmt.Errorf("failed to find current user's private key: %w", err)
+	}
 	backupPath := keyPath + ".backup"
 
 	if err := s.backupCurrentKey(keyPath, backupPath); err != nil {
@@ -425,9 +533,16 @@ func (s *SopsManager) findMemberByID(manifest *Manifest, userID string) *Member 
 }
 
 func (s *SopsManager) executeKeyRotation(manifest *Manifest, currentMember *Member, keyPath, backupPath string) error {
-	newPublicKey, err := s.generateAgeKey(keyPath)
+	// Generate new key with hash-based naming
+	newPublicKey, err := s.generateNewAgeKey()
 	if err != nil {
 		return s.handleRotationError("failed to generate new key", err, keyPath, backupPath)
+	}
+
+	// Remove old key file (backup was already made)
+	if err := os.Remove(keyPath); err != nil && !os.IsNotExist(err) {
+		// Non-critical - log but continue
+		_, _ = fmt.Fprintf(s.output, "Warning: failed to remove old key file %s: %v\n", keyPath, err)
 	}
 
 	currentMember.AgeKey = newPublicKey
@@ -510,7 +625,7 @@ func (s *SopsManager) checkKeyExpiry(member *Member, maxAgeDays int) error {
 }
 
 // CheckKeyExpiry checks if any keys are expired or expiring soon
-func (s *SopsManager) CheckKeyExpiry() error {
+func (s *SopsManager) CheckKeyExpiry(verbose bool) error {
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to load manifest: %w", err)
@@ -523,25 +638,9 @@ func (s *SopsManager) CheckKeyExpiry() error {
 	now := time.Now()
 
 	for _, member := range manifest.Members {
-		age := now.Sub(member.Created)
-		maxAge := time.Duration(maxAgeDays) * 24 * time.Hour
-		warningThreshold := maxAge - (14 * 24 * time.Hour) // 2 weeks before expiry
-
-		switch {
-		case age > maxAge:
-			_, _ = fmt.Fprintf(s.output, "❌ %s: key expired %d days ago (created: %s)\n",
-				member.ID, int((age-maxAge).Hours()/24), member.Created.Format("2006-01-02"))
-			errors++
-		case age > warningThreshold:
-			daysUntilExpiry := int((maxAge - age).Hours() / 24)
-			_, _ = fmt.Fprintf(s.output, "⚠️  %s: key expires in %d days (created: %s)\n",
-				member.ID, daysUntilExpiry, member.Created.Format("2006-01-02"))
-			warnings++
-		default:
-			daysAge := int(age.Hours() / 24)
-			_, _ = fmt.Fprintf(s.output, "✅ %s: key is %d days old (created: %s)\n",
-				member.ID, daysAge, member.Created.Format("2006-01-02"))
-		}
+		memberWarnings, memberErrors := s.checkMemberKeyStatus(member, maxAgeDays, now, verbose)
+		warnings += memberWarnings
+		errors += memberErrors
 	}
 
 	if errors > 0 {
@@ -552,4 +651,39 @@ func (s *SopsManager) CheckKeyExpiry() error {
 	}
 
 	return nil
+}
+
+// checkMemberKeyStatus checks a single member's key status and returns warnings/errors count
+func (s *SopsManager) checkMemberKeyStatus(member Member, maxAgeDays int, now time.Time, verbose bool) (int, int) {
+	age := now.Sub(member.Created)
+	maxAge := time.Duration(maxAgeDays) * 24 * time.Hour
+	warningThreshold := maxAge - (14 * 24 * time.Hour) // 2 weeks before expiry
+
+	// Find matching private key file for verbose output
+	var keyInfo string
+	if verbose {
+		keyPath, err := s.findKeyForPublicKey(member.AgeKey)
+		if err != nil {
+			keyInfo = " [private key: NOT FOUND]"
+		} else {
+			keyInfo = fmt.Sprintf(" [private key: %s]", filepath.Base(keyPath))
+		}
+	}
+
+	switch {
+	case age > maxAge:
+		_, _ = fmt.Fprintf(s.output, "❌ %s: key expired %d days ago (created: %s)%s\n",
+			member.ID, int((age-maxAge).Hours()/24), member.Created.Format("2006-01-02"), keyInfo)
+		return 0, 1 // 0 warnings, 1 error
+	case age > warningThreshold:
+		daysUntilExpiry := int((maxAge - age).Hours() / 24)
+		_, _ = fmt.Fprintf(s.output, "⚠️  %s: key expires in %d days (created: %s)%s\n",
+			member.ID, daysUntilExpiry, member.Created.Format("2006-01-02"), keyInfo)
+		return 1, 0 // 1 warning, 0 errors
+	default:
+		daysAge := int(age.Hours() / 24)
+		_, _ = fmt.Fprintf(s.output, "✅ %s: key is %d days old (created: %s)%s\n",
+			member.ID, daysAge, member.Created.Format("2006-01-02"), keyInfo)
+		return 0, 0 // 0 warnings, 0 errors
+	}
 }

@@ -46,7 +46,7 @@ func TestSopsManager_SetupEnvironment(t *testing.T) {
 	service := setupTestEnvironment(t)
 
 	// When: setting up the environment
-	err := service.setupEnvironment()
+	_, err := service.setupEnvironment()
 
 	// Then: it should succeed and create the secrets directory with correct permissions
 	requireNoError(t, err, "setupEnvironment() should succeed")
@@ -110,11 +110,32 @@ func TestSopsManager_Init_AlreadyExists(t *testing.T) {
 	// Then: it should fail
 	requireError(t, err, "second initialization without force should fail")
 
-	// When: second initialization with force
+	// When: second initialization with force (should succeed - creates new key alongside existing ones)
 	err = service.Init(true)
 
-	// Then: it should succeed
-	requireNoError(t, err, "force initialization should succeed")
+	// Then: it should succeed (version control protects against team member loss)
+	requireNoError(t, err, "force initialization should succeed - existing keys are preserved")
+}
+
+func TestSopsManager_Init_ForceWithoutActiveKeys(t *testing.T) {
+	t.Parallel()
+
+	// Given: a directory with manifest but no keys
+	service := setupTestEnvironment(t)
+
+	// Create manifest file but no key file
+	manifest := service.createInitialManifest("testuser", "age1testkey123", time.Now().UTC())
+	err := manifest.Save(service.configPath)
+	requireNoError(t, err, "should create initial manifest")
+
+	// When: force initialization (no active keys)
+	err = service.Init(true)
+
+	// Then: it should succeed or fail, but NOT due to active keys protection
+	if err != nil && containsString(err.Error(), "active team setup detected") {
+		t.Errorf("Should not get active team setup error when no keys exist, got: %v", err)
+	}
+	// If it succeeded, that's also fine - the key point is no active team protection triggered
 }
 
 func TestSopsManager_AddMember(t *testing.T) {
