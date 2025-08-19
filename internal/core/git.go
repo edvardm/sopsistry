@@ -10,7 +10,7 @@ import (
 )
 
 // checkGitClean verifies the git working tree is clean
-func (s *TeamService) checkGitClean() error {
+func (s *SopsManager) checkGitClean() error {
 	cmd := exec.Command("git", "rev-parse", "--git-dir")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("not in a git repository")
@@ -30,7 +30,7 @@ func (s *TeamService) checkGitClean() error {
 }
 
 // ensureGitignore adds .secrets to .gitignore if not already present
-func (s *TeamService) ensureGitignore() error {
+func (s *SopsManager) ensureGitignore() error {
 	gitignorePath := ".gitignore"
 
 	lines, secretsIgnored := s.readGitignoreLines(gitignorePath)
@@ -42,7 +42,7 @@ func (s *TeamService) ensureGitignore() error {
 	return nil
 }
 
-func (s *TeamService) readGitignoreLines(gitignorePath string) ([]string, bool) {
+func (s *SopsManager) readGitignoreLines(gitignorePath string) ([]string, bool) {
 	var lines []string
 	secretsIgnored := false
 
@@ -65,12 +65,12 @@ func (s *TeamService) readGitignoreLines(gitignorePath string) ([]string, bool) 
 	return lines, secretsIgnored
 }
 
-func (s *TeamService) isSecretsIgnorePattern(line string) bool {
+func (s *SopsManager) isSecretsIgnorePattern(line string) bool {
 	patterns := []string{".secrets", ".secrets/", "/.secrets"}
 	return slices.Contains(patterns, line)
 }
 
-func (s *TeamService) addSecretsToGitignore(gitignorePath string, lines []string) error {
+func (s *SopsManager) addSecretsToGitignore(gitignorePath string, lines []string) error {
 	updatedLines := s.appendSecretsEntry(lines)
 	content := strings.Join(updatedLines, "\n") + "\n"
 
@@ -82,7 +82,7 @@ func (s *TeamService) addSecretsToGitignore(gitignorePath string, lines []string
 	return nil
 }
 
-func (s *TeamService) appendSecretsEntry(lines []string) []string {
+func (s *SopsManager) appendSecretsEntry(lines []string) []string {
 	if len(lines) > 0 && lines[len(lines)-1] != "" {
 		lines = append(lines, "")
 	}

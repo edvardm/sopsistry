@@ -15,7 +15,7 @@ const (
 // Integration tests that require age-keygen to be installed
 // These tests are separate to allow unit tests to run without external dependencies
 
-func TestTeamService_Init_Integration(t *testing.T) {
+func TestSopsManager_Init_Integration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
@@ -23,18 +23,18 @@ func TestTeamService_Init_Integration(t *testing.T) {
 	skipIfAgeKeygenUnavailable(t)
 	t.Parallel()
 
-	// Given: a fresh directory and team service
+	// Given: a fresh directory and SOPS manager
 	service := setupIntegrationTestEnvironment(t)
 
-	// When: initializing the team service
+	// When: initializing the SOPS manager
 	err := service.Init(false)
 
 	// Then: initialization should succeed and create all required files
-	requireNoError(t, err, "team service initialization should succeed")
+	requireNoError(t, err, "SOPS manager initialization should succeed")
 	verifyInitializationArtifacts(t, service)
 }
 
-func TestTeamService_AddMember_Integration(t *testing.T) {
+func TestSopsManager_AddMember_Integration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
@@ -44,7 +44,7 @@ func TestTeamService_AddMember_Integration(t *testing.T) {
 
 	testAgeKey := testAgeKeyValue
 
-	// Given: an initialized team service
+	// Given: an initialized SOPS manager
 	service := setupInitializedIntegrationService(t)
 
 	// When: adding a valid member
@@ -78,14 +78,14 @@ func skipIfAgeKeygenUnavailable(t *testing.T) {
 	}
 }
 
-func setupIntegrationTestEnvironment(t *testing.T) *TeamService {
+func setupIntegrationTestEnvironment(t *testing.T) *SopsManager {
 	t.Helper()
 
 	// Create unique temp directory (like Python tmpdir fixture)
 	tempDir := t.TempDir()
 
 	// Create service with absolute paths - no chdir needed!
-	return &TeamService{
+	return &SopsManager{
 		sopsPath:   "sops",
 		configPath: filepath.Join(tempDir, "sopsistry.yaml"),
 		secretsDir: filepath.Join(tempDir, ".secrets"),
@@ -93,7 +93,7 @@ func setupIntegrationTestEnvironment(t *testing.T) *TeamService {
 	}
 }
 
-func setupInitializedIntegrationService(t *testing.T) *TeamService {
+func setupInitializedIntegrationService(t *testing.T) *SopsManager {
 	t.Helper()
 
 	service := setupIntegrationTestEnvironment(t)
@@ -102,7 +102,7 @@ func setupInitializedIntegrationService(t *testing.T) *TeamService {
 	return service
 }
 
-func verifyInitializationArtifacts(t *testing.T, service *TeamService) {
+func verifyInitializationArtifacts(t *testing.T, service *SopsManager) {
 	t.Helper()
 
 	verifyConfigFileExists(t, service.configPath)

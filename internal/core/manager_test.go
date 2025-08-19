@@ -9,10 +9,10 @@ import (
 	"time"
 )
 
-func TestTeamService_CheckInitialization(t *testing.T) {
+func TestSopsManager_CheckInitialization(t *testing.T) {
 	t.Parallel()
 
-	// Given: a fresh directory and team service
+	// Given: a fresh directory and SOPS manager
 	service := setupTestEnvironment(t)
 
 	// When: checking initialization on fresh directory
@@ -39,10 +39,10 @@ func TestTeamService_CheckInitialization(t *testing.T) {
 	requireNoError(t, err, "checkInitialization(true) should always succeed")
 }
 
-func TestTeamService_SetupEnvironment(t *testing.T) {
+func TestSopsManager_SetupEnvironment(t *testing.T) {
 	t.Parallel()
 
-	// Given: a fresh directory and team service
+	// Given: a fresh directory and SOPS manager
 	service := setupTestEnvironment(t)
 
 	// When: setting up the environment
@@ -54,10 +54,10 @@ func TestTeamService_SetupEnvironment(t *testing.T) {
 	verifySecretsDirectoryHasCorrectPermissions(t, service)
 }
 
-func TestTeamService_CreateInitialManifest(t *testing.T) {
+func TestSopsManager_CreateInitialManifest(t *testing.T) {
 	t.Parallel()
 
-	service := NewTeamService("sops")
+	service := NewSopsManager("sops")
 	memberID := "testuser"
 	publicKey := testAgeKeyValue
 
@@ -92,10 +92,10 @@ func TestTeamService_CreateInitialManifest(t *testing.T) {
 	}
 }
 
-func TestTeamService_Init_AlreadyExists(t *testing.T) {
+func TestSopsManager_Init_AlreadyExists(t *testing.T) {
 	t.Parallel()
 
-	// Given: a fresh directory and team service
+	// Given: a fresh directory and SOPS manager
 	service := setupTestEnvironment(t)
 
 	// When: first initialization
@@ -117,7 +117,7 @@ func TestTeamService_Init_AlreadyExists(t *testing.T) {
 	requireNoError(t, err, "force initialization should succeed")
 }
 
-func TestTeamService_AddMember(t *testing.T) {
+func TestSopsManager_AddMember(t *testing.T) {
 	t.Parallel()
 
 	testAgeKey := testAgeKeyValue
@@ -146,8 +146,8 @@ func TestTeamService_AddMember(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			// Given: an initialized team service
-			service := setupTeamServiceInTempDir(t)
+			// Given: an initialized SOPS manager
+			service := setupSopsManagerInTempDir(t)
 
 			// When: adding a member to the team
 			err := service.AddMember(tc.memberID, tc.memberKey)
@@ -163,13 +163,13 @@ func TestTeamService_AddMember(t *testing.T) {
 	}
 }
 
-func TestTeamService_AddMember_Duplicate(t *testing.T) {
+func TestSopsManager_AddMember_Duplicate(t *testing.T) {
 	t.Parallel()
 
 	testAgeKey := testAgeKeyValue
 
-	// Given: an initialized team service with alice already added
-	service := setupTeamServiceInTempDir(t)
+	// Given: an initialized SOPS manager with alice already added
+	service := setupSopsManagerInTempDir(t)
 	err := service.AddMember("alice", testAgeKey)
 	requireNoError(t, err, "first AddMember should succeed")
 
@@ -180,7 +180,7 @@ func TestTeamService_AddMember_Duplicate(t *testing.T) {
 	requireError(t, err, "adding duplicate member should fail")
 }
 
-func TestTeamService_RemoveMember(t *testing.T) {
+func TestSopsManager_RemoveMember(t *testing.T) {
 	t.Parallel()
 
 	testAgeKey := testAgeKeyValue
@@ -206,8 +206,8 @@ func TestTeamService_RemoveMember(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			// Given: an initialized team service with alice as a member
-			service := setupTeamServiceWithMember(t, "alice", testAgeKey)
+			// Given: an initialized SOPS manager with alice as a member
+			service := setupSopsManagerWithMember(t, "alice", testAgeKey)
 
 			// When: removing a member from the team
 			err := service.RemoveMember(tc.memberID)
@@ -223,18 +223,18 @@ func TestTeamService_RemoveMember(t *testing.T) {
 	}
 }
 
-func TestNewTeamService(t *testing.T) {
+func TestNewSopsManager(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name     string
 		sopsPath string
-		want     *TeamService
+		want     *SopsManager
 	}{
 		{
 			name:     "default sops path",
 			sopsPath: "sops",
-			want: &TeamService{
+			want: &SopsManager{
 				sopsPath:   "sops",
 				configPath: "sopsistry.yaml",
 				secretsDir: ".secrets",
@@ -243,7 +243,7 @@ func TestNewTeamService(t *testing.T) {
 		{
 			name:     "custom sops path",
 			sopsPath: "/usr/local/bin/sops",
-			want: &TeamService{
+			want: &SopsManager{
 				sopsPath:   "/usr/local/bin/sops",
 				configPath: "sopsistry.yaml",
 				secretsDir: ".secrets",
@@ -255,15 +255,15 @@ func TestNewTeamService(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := NewTeamService(tt.sopsPath)
+			got := NewSopsManager(tt.sopsPath)
 			if got.sopsPath != tt.want.sopsPath {
-				t.Errorf("NewTeamService().sopsPath = %v, want %v", got.sopsPath, tt.want.sopsPath)
+				t.Errorf("NewSopsManager().sopsPath = %v, want %v", got.sopsPath, tt.want.sopsPath)
 			}
 			if got.configPath != tt.want.configPath {
-				t.Errorf("NewTeamService().configPath = %v, want %v", got.configPath, tt.want.configPath)
+				t.Errorf("NewSopsManager().configPath = %v, want %v", got.configPath, tt.want.configPath)
 			}
 			if got.secretsDir != tt.want.secretsDir {
-				t.Errorf("NewTeamService().secretsDir = %v, want %v", got.secretsDir, tt.want.secretsDir)
+				t.Errorf("NewSopsManager().secretsDir = %v, want %v", got.secretsDir, tt.want.secretsDir)
 			}
 		})
 	}
@@ -271,29 +271,29 @@ func TestNewTeamService(t *testing.T) {
 
 // Test Helper Functions - make tests readable as executable specifications
 
-func setupTeamServiceInTempDir(t *testing.T) *TeamService {
+func setupSopsManagerInTempDir(t *testing.T) *SopsManager {
 	t.Helper()
 
 	service := setupTestEnvironment(t)
-	initializeTeamService(t, service)
+	initializeSopsManager(t, service)
 	return service
 }
 
-func setupTestEnvironment(t *testing.T) *TeamService {
+func setupTestEnvironment(t *testing.T) *SopsManager {
 	t.Helper()
 
 	// Create unique temp directory for this test (like Python tmpdir fixture)
 	tempDir := t.TempDir()
 
 	// Create a service that works with absolute paths - no chdir needed!
-	service := createTeamServiceInDir(tempDir)
+	service := createSopsManagerInDir(tempDir)
 	return service
 }
 
-// createTeamServiceInDir creates a TeamService that works in a specific directory
+// createSopsManagerInDir creates a SopsManager that works in a specific directory
 // without changing the global working directory (like Python's tmpdir fixture)
-func createTeamServiceInDir(workDir string) *TeamService {
-	return &TeamService{
+func createSopsManagerInDir(workDir string) *SopsManager {
+	return &SopsManager{
 		sopsPath:   "sops",
 		configPath: filepath.Join(workDir, "sopsistry.yaml"),
 		secretsDir: filepath.Join(workDir, ".secrets"),
@@ -301,11 +301,11 @@ func createTeamServiceInDir(workDir string) *TeamService {
 	}
 }
 
-func initializeTeamService(t *testing.T, service *TeamService) {
+func initializeSopsManager(t *testing.T, service *SopsManager) {
 	t.Helper()
 
 	if err := service.Init(false); err != nil {
-		t.Fatalf("team service initialization failed: %v", err)
+		t.Fatalf("SOPS manager initialization failed: %v", err)
 	}
 }
 
@@ -325,7 +325,7 @@ func requireError(t *testing.T, err error, message string) {
 	}
 }
 
-func verifyMemberWasAddedToTeam(t *testing.T, service *TeamService, memberID, expectedKey string) {
+func verifyMemberWasAddedToTeam(t *testing.T, service *SopsManager, memberID, expectedKey string) {
 	t.Helper()
 
 	manifest := loadManifestOrFail(t, service.configPath)
@@ -373,16 +373,16 @@ func verifyMemberExistsInDefaultScope(t *testing.T, manifest *Manifest, memberID
 	t.Error("default scope was not found in manifest")
 }
 
-func setupTeamServiceWithMember(t *testing.T, memberID, memberKey string) *TeamService {
+func setupSopsManagerWithMember(t *testing.T, memberID, memberKey string) *SopsManager {
 	t.Helper()
 
-	service := setupTeamServiceInTempDir(t)
+	service := setupSopsManagerInTempDir(t)
 	err := service.AddMember(memberID, memberKey)
 	requireNoError(t, err, "failed to add initial member")
 	return service
 }
 
-func verifyMemberWasRemovedFromTeam(t *testing.T, service *TeamService, memberID string) {
+func verifyMemberWasRemovedFromTeam(t *testing.T, service *SopsManager, memberID string) {
 	t.Helper()
 
 	manifest := loadManifestOrFail(t, service.configPath)
@@ -412,7 +412,7 @@ func verifyMemberNotInAnyScope(t *testing.T, manifest *Manifest, memberID string
 	}
 }
 
-func verifySecretsDirectoryCreated(t *testing.T, service *TeamService) {
+func verifySecretsDirectoryCreated(t *testing.T, service *SopsManager) {
 	t.Helper()
 
 	if _, err := os.Stat(service.secretsDir); os.IsNotExist(err) {
@@ -420,7 +420,7 @@ func verifySecretsDirectoryCreated(t *testing.T, service *TeamService) {
 	}
 }
 
-func verifySecretsDirectoryHasCorrectPermissions(t *testing.T, service *TeamService) {
+func verifySecretsDirectoryHasCorrectPermissions(t *testing.T, service *SopsManager) {
 	t.Helper()
 
 	info, err := os.Stat(service.secretsDir)

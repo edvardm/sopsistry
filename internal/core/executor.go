@@ -109,15 +109,11 @@ func (e *Executor) executeAction(action Action) error {
 
 // encryptFile encrypts a new file with SOPS
 func (e *Executor) encryptFile(file string, recipients []string) error {
-	sopsConfig, err := e.createTempSOPSConfig(recipients)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = os.Remove(sopsConfig) }()
-
 	if !isValidSOPSPath(e.sopsPath) {
 		return fmt.Errorf("invalid sops path: %s", e.sopsPath)
 	}
+
+	// Use environment variable to specify age recipients
 	cmd := exec.Command(e.sopsPath, "-e", "--in-place", file) //nolint:gosec // sopsPath validated by isValidSOPSPath()
 	cmd.Env = append(os.Environ(), fmt.Sprintf("SOPS_AGE_RECIPIENTS=%s", strings.Join(recipients, ",")))
 
@@ -129,53 +125,22 @@ func (e *Executor) encryptFile(file string, recipients []string) error {
 	return nil
 }
 
-// reencryptFile re-encrypts an existing SOPS file with new recipients
+// reencryptFile re-encrypts an existing SOPS file with new recipients using native rotate
 func (e *Executor) reencryptFile(file string, recipients []string) error {
-	tempFile := file + ".tmp"
-
 	if !isValidSOPSPath(e.sopsPath) {
 		return fmt.Errorf("invalid sops path: %s", e.sopsPath)
 	}
-	cmd := exec.Command(e.sopsPath, "-d", file) //nolint:gosec // sopsPath validated by isValidSOPSPath()
-	output, err := cmd.Output()
+
+	// Use SOPS native rotate command for atomic key rotation
+	args := []string{"--rotate", "--age", strings.Join(recipients, ","), file}
+	cmd := exec.Command(e.sopsPath, args...) //nolint:gosec // sopsPath validated by isValidSOPSPath()
+
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to decrypt %s: %w", file, err)
-	}
-
-	if err := os.WriteFile(tempFile, output, 0o600); err != nil {
-		return fmt.Errorf("failed to write temp file: %w", err)
-	}
-	defer func() { _ = os.Remove(tempFile) }()
-
-	if err := e.encryptFile(tempFile, recipients); err != nil {
-		return fmt.Errorf("failed to encrypt with new recipients: %w", err)
-	}
-
-	if err := os.Rename(tempFile, file); err != nil {
-		return fmt.Errorf("failed to replace original file: %w", err)
+		return fmt.Errorf("sops rotate failed for %s: %s", file, string(output))
 	}
 
 	return nil
-}
-
-// createTempSOPSConfig creates a temporary .sops.yaml configuration
-func (e *Executor) createTempSOPSConfig(recipients []string) (string, error) {
-	tempFile, err := os.CreateTemp("", "sops-*.yaml")
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = tempFile.Close() }()
-
-	config := fmt.Sprintf(`creation_rules:
-  - age: %s
-`, strings.Join(recipients, ","))
-
-	if _, err := tempFile.WriteString(config); err != nil {
-		_ = os.Remove(tempFile.Name())
-		return "", err
-	}
-
-	return tempFile.Name(), nil
 }
 
 // rollback restores files from backup

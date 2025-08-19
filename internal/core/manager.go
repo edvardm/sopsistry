@@ -10,17 +10,17 @@ import (
 	"time"
 )
 
-// TeamService handles all SOPS team management operations
-type TeamService struct {
+// SopsManager handles all SOPS team management operations
+type SopsManager struct {
 	sopsPath   string
 	configPath string
 	secretsDir string
 	output     io.Writer
 }
 
-// NewTeamService creates a new team service instance
-func NewTeamService(sopsPath string) *TeamService {
-	return &TeamService{
+// NewSopsManager creates a new SOPS manager instance
+func NewSopsManager(sopsPath string) *SopsManager {
+	return &SopsManager{
 		sopsPath:   sopsPath,
 		configPath: "sopsistry.yaml",
 		secretsDir: ".secrets",
@@ -29,7 +29,7 @@ func NewTeamService(sopsPath string) *TeamService {
 }
 
 // Init initializes a new SOPS team configuration
-func (s *TeamService) Init(force bool) error {
+func (s *SopsManager) Init(force bool) error {
 	if err := s.checkInitialization(force); err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func (s *TeamService) Init(force bool) error {
 	return nil
 }
 
-func (s *TeamService) checkInitialization(force bool) error {
+func (s *SopsManager) checkInitialization(force bool) error {
 	if !force {
 		if _, err := os.Stat(s.configPath); err == nil {
 			return fmt.Errorf("sopsistry.yaml already exists (use --force to overwrite)")
@@ -69,7 +69,7 @@ func (s *TeamService) checkInitialization(force bool) error {
 	return nil
 }
 
-func (s *TeamService) setupEnvironment() error {
+func (s *SopsManager) setupEnvironment() error {
 	if err := os.MkdirAll(s.secretsDir, 0o700); err != nil {
 		return fmt.Errorf("failed to create .secrets directory: %w", err)
 	}
@@ -81,7 +81,7 @@ func (s *TeamService) setupEnvironment() error {
 	return nil
 }
 
-func (s *TeamService) setupAgeKey() (string, error) {
+func (s *SopsManager) setupAgeKey() (string, error) {
 	keyPath := filepath.Join(s.secretsDir, "key.txt")
 
 	if _, err := os.Stat(keyPath); err != nil {
@@ -96,7 +96,7 @@ func (s *TeamService) setupAgeKey() (string, error) {
 	return publicKey, nil
 }
 
-func (s *TeamService) getCurrentMemberID() (string, error) {
+func (s *SopsManager) getCurrentMemberID() (string, error) {
 	currentUser, err := user.Current()
 	if err != nil {
 		return "", fmt.Errorf("failed to get current user: %w", err)
@@ -109,7 +109,7 @@ func (s *TeamService) getCurrentMemberID() (string, error) {
 	return memberID, nil
 }
 
-func (s *TeamService) createInitialManifest(memberID, publicKey string, created time.Time) *Manifest {
+func (s *SopsManager) createInitialManifest(memberID, publicKey string, created time.Time) *Manifest {
 	return &Manifest{
 		Members: []Member{
 			{
@@ -132,7 +132,7 @@ func (s *TeamService) createInitialManifest(memberID, publicKey string, created 
 	}
 }
 
-func (s *TeamService) printInitializationSuccess(force bool, memberID string) {
+func (s *SopsManager) printInitializationSuccess(force bool, memberID string) {
 	if force {
 		_, _ = fmt.Fprintf(s.output, "Re-initialized SOPS team configuration (force mode)\n")
 	} else {
@@ -148,7 +148,7 @@ func (s *TeamService) printInitializationSuccess(force bool, memberID string) {
 	_, _ = fmt.Fprintf(s.output, "🧑‍💻  Added %s as team member\n", memberID)
 }
 
-func (s *TeamService) showSOPSCoexistenceAdvice() {
+func (s *SopsManager) showSOPSCoexistenceAdvice() {
 	detector := NewSOPSDetector()
 	sopsInfo, err := detector.DetectSOPSConfig()
 	if err == nil && sopsInfo.Exists {
@@ -156,7 +156,7 @@ func (s *TeamService) showSOPSCoexistenceAdvice() {
 	}
 }
 
-func (s *TeamService) printNextSteps() {
+func (s *SopsManager) printNextSteps() {
 	_, _ = fmt.Fprintf(s.output, "\n🚀 Next steps:\n")
 	_, _ = fmt.Fprintf(s.output, "1. Encrypt files: sistry encrypt <file> or sistry encrypt --regex '^(password|key)' <file>\n")
 	_, _ = fmt.Fprintf(s.output, "2. Add more team members: sistry add-member <id> --key <age-pubkey>\n")
@@ -165,7 +165,7 @@ func (s *TeamService) printNextSteps() {
 }
 
 // Plan shows what changes would be made
-func (s *TeamService) Plan(noColor bool) error {
+func (s *SopsManager) Plan(noColor bool) error {
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to load manifest: %w", err)
@@ -182,7 +182,7 @@ func (s *TeamService) Plan(noColor bool) error {
 }
 
 // Apply executes planned changes
-func (s *TeamService) Apply(requireCleanGit, skipConfirmation bool) error {
+func (s *SopsManager) Apply(requireCleanGit, skipConfirmation bool) error {
 	if requireCleanGit {
 		if err := s.checkGitClean(); err != nil {
 			return err
@@ -221,7 +221,7 @@ func (s *TeamService) Apply(requireCleanGit, skipConfirmation bool) error {
 }
 
 // AddMember adds a new team member
-func (s *TeamService) AddMember(id, ageKey string) error {
+func (s *SopsManager) AddMember(id, ageKey string) error {
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to load manifest: %w", err)
@@ -259,7 +259,7 @@ func (s *TeamService) AddMember(id, ageKey string) error {
 }
 
 // RemoveMember removes a team member
-func (s *TeamService) RemoveMember(id string) error {
+func (s *SopsManager) RemoveMember(id string) error {
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to load manifest: %w", err)
@@ -279,7 +279,7 @@ func (s *TeamService) RemoveMember(id string) error {
 	return nil
 }
 
-func (s *TeamService) removeMemberFromManifest(manifest *Manifest, id string) error {
+func (s *SopsManager) removeMemberFromManifest(manifest *Manifest, id string) error {
 	for i, member := range manifest.Members {
 		if member.ID == id {
 			manifest.Members = append(manifest.Members[:i], manifest.Members[i+1:]...)
@@ -289,13 +289,13 @@ func (s *TeamService) removeMemberFromManifest(manifest *Manifest, id string) er
 	return fmt.Errorf("member %s not found", id)
 }
 
-func (s *TeamService) removeMemberFromAllScopes(manifest *Manifest, id string) {
+func (s *SopsManager) removeMemberFromAllScopes(manifest *Manifest, id string) {
 	for i := range manifest.Scopes {
 		s.removeMemberFromScope(&manifest.Scopes[i], id)
 	}
 }
 
-func (s *TeamService) removeMemberFromScope(scope *Scope, id string) {
+func (s *SopsManager) removeMemberFromScope(scope *Scope, id string) {
 	for j, memberID := range scope.Members {
 		if memberID == id {
 			scope.Members = append(scope.Members[:j], scope.Members[j+1:]...)
@@ -304,13 +304,13 @@ func (s *TeamService) removeMemberFromScope(scope *Scope, id string) {
 	}
 }
 
-func (s *TeamService) printRemovalSuccess(id string) {
+func (s *SopsManager) printRemovalSuccess(id string) {
 	_, _ = fmt.Fprintf(s.output, "Removed member %s from team\n", id)
 	_, _ = fmt.Fprintln(s.output, "Run 'sistry plan' to see changes, then 'sistry apply' to re-encrypt files")
 }
 
 // List displays current team configuration
-func (s *TeamService) List(jsonOutput bool) error {
+func (s *SopsManager) List(jsonOutput bool) error {
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to load manifest: %w", err)
@@ -325,7 +325,7 @@ func (s *TeamService) List(jsonOutput bool) error {
 }
 
 // EncryptFile encrypts a file using the current team configuration
-func (s *TeamService) EncryptFile(filePath string, inPlace bool, regex string) error {
+func (s *SopsManager) EncryptFile(filePath string, inPlace bool, regex string) error {
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to load manifest: %w", err)
@@ -345,7 +345,7 @@ func (s *TeamService) EncryptFile(filePath string, inPlace bool, regex string) e
 }
 
 // DecryptFile decrypts a SOPS-encrypted file
-func (s *TeamService) DecryptFile(filePath string, inPlace bool) error {
+func (s *SopsManager) DecryptFile(filePath string, inPlace bool) error {
 	keyPath := filepath.Join(s.secretsDir, "key.txt")
 
 	decryptor := NewDecryptor(s.sopsPath)
@@ -353,7 +353,7 @@ func (s *TeamService) DecryptFile(filePath string, inPlace bool) error {
 }
 
 // ShowSOPSCommand displays the SOPS command with proper environment variables
-func (s *TeamService) ShowSOPSCommand(args []string, execute bool) error {
+func (s *SopsManager) ShowSOPSCommand(args []string, execute bool) error {
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to load manifest: %w", err)
@@ -373,7 +373,7 @@ func (s *TeamService) ShowSOPSCommand(args []string, execute bool) error {
 }
 
 // RotateKey rotates the current user's age key
-func (s *TeamService) RotateKey(force bool) error {
+func (s *SopsManager) RotateKey(force bool) error {
 	manifest, currentMember, err := s.prepareKeyRotation(force)
 	if err != nil {
 		return err
@@ -390,7 +390,7 @@ func (s *TeamService) RotateKey(force bool) error {
 	return s.executeKeyRotation(manifest, currentMember, keyPath, backupPath)
 }
 
-func (s *TeamService) prepareKeyRotation(force bool) (*Manifest, *Member, error) {
+func (s *SopsManager) prepareKeyRotation(force bool) (*Manifest, *Member, error) {
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load manifest: %w", err)
@@ -415,7 +415,7 @@ func (s *TeamService) prepareKeyRotation(force bool) (*Manifest, *Member, error)
 	return manifest, currentMember, nil
 }
 
-func (s *TeamService) findMemberByID(manifest *Manifest, userID string) *Member {
+func (s *SopsManager) findMemberByID(manifest *Manifest, userID string) *Member {
 	for i := range manifest.Members {
 		if manifest.Members[i].ID == userID {
 			return &manifest.Members[i]
@@ -424,7 +424,7 @@ func (s *TeamService) findMemberByID(manifest *Manifest, userID string) *Member 
 	return nil
 }
 
-func (s *TeamService) executeKeyRotation(manifest *Manifest, currentMember *Member, keyPath, backupPath string) error {
+func (s *SopsManager) executeKeyRotation(manifest *Manifest, currentMember *Member, keyPath, backupPath string) error {
 	newPublicKey, err := s.generateAgeKey(keyPath)
 	if err != nil {
 		return s.handleRotationError("failed to generate new key", err, keyPath, backupPath)
@@ -445,7 +445,7 @@ func (s *TeamService) executeKeyRotation(manifest *Manifest, currentMember *Memb
 	return nil
 }
 
-func (s *TeamService) reencryptAllFiles(manifest *Manifest, keyPath, backupPath string) error {
+func (s *SopsManager) reencryptAllFiles(manifest *Manifest, keyPath, backupPath string) error {
 	planner := NewPlanner(s.sopsPath)
 	plan, err := planner.ComputePlan(manifest)
 	if err != nil {
@@ -460,12 +460,12 @@ func (s *TeamService) reencryptAllFiles(manifest *Manifest, keyPath, backupPath 
 	return nil
 }
 
-func (s *TeamService) printRotationSuccess(member *Member) {
+func (s *SopsManager) printRotationSuccess(member *Member) {
 	_, _ = fmt.Fprintf(s.output, "🔄 Successfully rotated key for %s\n", member.ID)
 	_, _ = fmt.Fprintf(s.output, "📅 New key created: %s\n", member.Created.Format("2006-01-02T15:04:05Z"))
 }
 
-func (s *TeamService) backupCurrentKey(keyPath, backupPath string) error {
+func (s *SopsManager) backupCurrentKey(keyPath, backupPath string) error {
 	if err := validateFilePath(keyPath); err != nil {
 		return fmt.Errorf("invalid key path: %w", err)
 	}
@@ -485,7 +485,7 @@ func (s *TeamService) backupCurrentKey(keyPath, backupPath string) error {
 	return nil
 }
 
-func (s *TeamService) handleRotationError(msg string, err error, keyPath, backupPath string) error {
+func (s *SopsManager) handleRotationError(msg string, err error, keyPath, backupPath string) error {
 	// Restore backup
 	if _, backupErr := os.Stat(backupPath); backupErr == nil {
 		if data, readErr := os.ReadFile(backupPath); readErr == nil { //nolint:gosec // Path validated during backup creation
@@ -495,7 +495,7 @@ func (s *TeamService) handleRotationError(msg string, err error, keyPath, backup
 	return fmt.Errorf("%s: %w", msg, err)
 }
 
-func (s *TeamService) checkKeyExpiry(member *Member, maxAgeDays int) error {
+func (s *SopsManager) checkKeyExpiry(member *Member, maxAgeDays int) error {
 	maxAgeDays = max(maxAgeDays, 180) // ensure minimum of 180 days (6 months)
 
 	age := time.Since(member.Created)
@@ -510,7 +510,7 @@ func (s *TeamService) checkKeyExpiry(member *Member, maxAgeDays int) error {
 }
 
 // CheckKeyExpiry checks if any keys are expired or expiring soon
-func (s *TeamService) CheckKeyExpiry() error {
+func (s *SopsManager) CheckKeyExpiry() error {
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to load manifest: %w", err)

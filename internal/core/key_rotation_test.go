@@ -45,7 +45,7 @@ func TestKeyRotation_ValidationLogic(t *testing.T) {
 	defer func() { _ = os.Unsetenv("USER") }()
 
 	var output bytes.Buffer
-	service := &TeamService{
+	service := &SopsManager{
 		sopsPath:   "/nonexistent/sops", // Will fail, but we test validation first
 		configPath: configPath,
 		secretsDir: secretsDir,
@@ -79,7 +79,7 @@ func TestKeyRotation_ExpiredKey(t *testing.T) {
 	secretsDir := filepath.Join(tempDir, ".secrets")
 
 	// Get the actual current user for this test
-	service := &TeamService{}
+	service := &SopsManager{}
 	currentUser, err := service.getCurrentMemberID()
 	if err != nil {
 		t.Skipf("Cannot get current user: %v", err)
@@ -111,7 +111,7 @@ func TestKeyRotation_ExpiredKey(t *testing.T) {
 	}
 
 	var output bytes.Buffer
-	service = &TeamService{
+	service = &SopsManager{
 		sopsPath:   "echo",
 		configPath: configPath,
 		secretsDir: secretsDir,
@@ -179,7 +179,7 @@ func TestCheckKeyExpiry_Warnings(t *testing.T) {
 	}
 
 	var output bytes.Buffer
-	service := &TeamService{
+	service := &SopsManager{
 		sopsPath:   "sops",
 		configPath: configPath,
 		secretsDir: ".secrets",
@@ -261,7 +261,7 @@ func TestKeyRotation_UserNotFound(t *testing.T) {
 	}()
 
 	var output bytes.Buffer
-	service := &TeamService{
+	service := &SopsManager{
 		sopsPath:   "sops",
 		configPath: configPath,
 		secretsDir: secretsDir,

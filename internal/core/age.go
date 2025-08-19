@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func (s *TeamService) generateAgeKey(keyPath string) (string, error) {
+func (s *SopsManager) generateAgeKey(keyPath string) (string, error) {
 	if err := ensureBinaryAvailable("age-keygen", "Please install age: https://github.com/FiloSottile/age"); err != nil {
 		return "", err
 	}
@@ -47,7 +47,7 @@ func (s *TeamService) generateAgeKey(keyPath string) (string, error) {
 	return publicKey, nil
 }
 
-func (s *TeamService) getPublicKeyFromPrivateKey(keyPath string) (string, error) {
+func (s *SopsManager) getPublicKeyFromPrivateKey(keyPath string) (string, error) {
 	if err := ensureBinaryAvailable("age-keygen", "Please install age: https://github.com/FiloSottile/age"); err != nil {
 		return "", err
 	}
