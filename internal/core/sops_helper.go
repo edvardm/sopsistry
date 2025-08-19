@@ -50,25 +50,25 @@ func (h *SOPSHelper) ShowCommand(args []string, ageKeys []string, execute bool) 
 
 		fmt.Printf("🔧 Executing: %s %s\n", h.sopsPath, strings.Join(args, " "))
 		return cmd.Run()
-	} else {
-		fmt.Printf("🔧 SOPS command with team environment:\n\n")
-
-		for _, env := range envVars {
-			fmt.Printf("export %s\n", env)
-		}
-
-		fmt.Printf("%s %s\n", h.sopsPath, strings.Join(args, " "))
-
-		fmt.Printf("\n💡 Common partial encryption examples:\n")
-		fmt.Printf("# Encrypt only password/key fields in .env:\n")
-		fmt.Printf("%s -e --encrypted-regex '^(.*password.*|.*key.*)$' .env\n\n", h.sopsPath)
-
-		fmt.Printf("# Encrypt specific fields in YAML:\n")
-		fmt.Printf("%s -e --encrypted-regex '^(password|secret|key)$' config.yaml\n\n", h.sopsPath)
-
-		fmt.Printf("# Decrypt file:\n")
-		fmt.Printf("%s -d encrypted-file.yaml\n", h.sopsPath)
-
-		return nil
 	}
+
+	fmt.Printf("🔧 SOPS command with team environment:\n\n")
+
+	for _, env := range envVars {
+		fmt.Printf("export %s\n", env)
+	}
+
+	fmt.Printf("%s %s\n", h.sopsPath, strings.Join(args, " "))
+
+	fmt.Printf("\n💡 Common partial encryption examples:\n")
+	fmt.Printf("# Encrypt only password/key fields in .env:\n")
+	fmt.Printf("%s -e --encrypted-regex '^(.*password.*|.*key.*)$' .env\n\n", h.sopsPath)
+
+	fmt.Printf("# Encrypt specific fields in YAML:\n")
+	fmt.Printf("%s -e --encrypted-regex '^(password|secret|key)$' config.yaml\n\n", h.sopsPath)
+
+	fmt.Printf("# Decrypt file:\n")
+	fmt.Printf("%s -d encrypted-file.yaml\n", h.sopsPath)
+
+	return nil
 }

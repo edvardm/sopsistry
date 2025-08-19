@@ -87,7 +87,7 @@ func (e *Executor) handleExecutionError(action Action, actionErr error, executed
 	fmt.Println("Rolling back changes...")
 
 	if rollbackErr := e.rollback(executedActions, backupDir); rollbackErr != nil {
-		return fmt.Errorf("execution failed and rollback failed: %v (original error: %w)", rollbackErr, actionErr)
+		return fmt.Errorf("execution failed and rollback failed: %w (original error: %w)", rollbackErr, actionErr)
 	}
 
 	return fmt.Errorf("execution failed: %w", actionErr)
@@ -100,6 +100,8 @@ func (e *Executor) executeAction(action Action) error {
 		return e.encryptFile(action.File, action.Recipients)
 	case ActionReencrypt:
 		return e.reencryptFile(action.File, action.Recipients)
+	case ActionSkip:
+		return nil // Skip action, nothing to do
 	default:
 		return fmt.Errorf("unknown action type: %s", action.Type)
 	}

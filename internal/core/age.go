@@ -1,3 +1,4 @@
+// Package core provides the business logic for SOPS team management
 package core
 
 import (

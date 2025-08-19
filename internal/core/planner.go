@@ -10,10 +10,11 @@ import (
 // ActionType represents the type of action to be performed
 type ActionType string
 
+// Action types for SOPS operations
 const (
-	ActionEncrypt   ActionType = "encrypt"
-	ActionReencrypt ActionType = "re-encrypt"
-	ActionSkip      ActionType = "skip"
+	ActionEncrypt   ActionType = "encrypt"    // Encrypt a new file
+	ActionReencrypt ActionType = "re-encrypt" // Re-encrypt existing file with new keys
+	ActionSkip      ActionType = "skip"       // Skip file (no members in scope)
 )
 
 // Action represents a single planned action

@@ -6,12 +6,15 @@ import (
 	"strings"
 )
 
+// DefaultSOPSBinary is the default name/path for the SOPS binary
+const DefaultSOPSBinary = "sops"
+
 // isValidSOPSPath validates that the sops path is safe to execute
 func isValidSOPSPath(path string) bool {
 	if strings.ContainsAny(path, ";|&$`\n\r") {
 		return false
 	}
-	if path == "sops" {
+	if path == DefaultSOPSBinary {
 		return true
 	}
 	if filepath.IsAbs(path) && strings.HasSuffix(path, "sops") {

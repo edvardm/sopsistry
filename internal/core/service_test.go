@@ -58,7 +58,7 @@ func TestTeamService_CreateInitialManifest(t *testing.T) {
 
 	service := NewTeamService("sops")
 	memberID := "testuser"
-	publicKey := "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+	publicKey := testAgeKeyValue
 
 	manifest := service.createInitialManifest(memberID, publicKey, time.Now().UTC())
 
@@ -78,7 +78,7 @@ func TestTeamService_CreateInitialManifest(t *testing.T) {
 		t.Errorf("expected 1 scope, got %d", len(manifest.Scopes))
 	}
 
-	if manifest.Scopes[0].Name != "default" {
+	if manifest.Scopes[0].Name != defaultScopeName {
 		t.Errorf("expected scope name 'default', got %s", manifest.Scopes[0].Name)
 	}
 
@@ -119,7 +119,7 @@ func TestTeamService_Init_AlreadyExists(t *testing.T) {
 func TestTeamService_AddMember(t *testing.T) {
 	t.Parallel()
 
-	testAgeKey := "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+	testAgeKey := testAgeKeyValue
 
 	testCases := []struct {
 		name       string
@@ -165,7 +165,7 @@ func TestTeamService_AddMember(t *testing.T) {
 func TestTeamService_AddMember_Duplicate(t *testing.T) {
 	t.Parallel()
 
-	testAgeKey := "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+	testAgeKey := testAgeKeyValue
 
 	// Given: an initialized team service with alice already added
 	service := setupTeamServiceInTempDir(t)
@@ -182,7 +182,7 @@ func TestTeamService_AddMember_Duplicate(t *testing.T) {
 func TestTeamService_RemoveMember(t *testing.T) {
 	t.Parallel()
 
-	testAgeKey := "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+	testAgeKey := testAgeKeyValue
 
 	testCases := []struct {
 		name       string

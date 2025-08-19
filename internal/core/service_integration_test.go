@@ -7,6 +7,11 @@ import (
 	"testing"
 )
 
+const (
+	testAgeKeyValue  = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+	defaultScopeName = "default"
+)
+
 // Integration tests that require age-keygen to be installed
 // These tests are separate to allow unit tests to run without external dependencies
 
@@ -37,7 +42,7 @@ func TestTeamService_AddMember_Integration(t *testing.T) {
 	skipIfAgeKeygenUnavailable(t)
 	t.Parallel()
 
-	testAgeKey := "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+	testAgeKey := testAgeKeyValue
 
 	// Given: an initialized team service
 	service := setupInitializedIntegrationService(t)
@@ -160,7 +165,7 @@ func verifyDefaultScopeIsValid(t *testing.T, manifest *Manifest) {
 	t.Helper()
 
 	for _, scope := range manifest.Scopes {
-		if scope.Name == "default" {
+		if scope.Name == defaultScopeName {
 			verifyDefaultScopeHasMembers(t, scope)
 			verifyDefaultScopeHasPatterns(t, scope)
 			return

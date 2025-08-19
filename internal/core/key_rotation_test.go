@@ -282,6 +282,7 @@ func TestKeyRotation_UserNotFound(t *testing.T) {
 
 // Helper functions
 func setupTestDir(t *testing.T) string {
+	t.Helper()
 	tempDir, err := os.MkdirTemp("", "sopsistry-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)

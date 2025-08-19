@@ -16,13 +16,15 @@ func ensureBinaryAvailable(binaryPath, installMessage string) error {
 	return nil
 }
 
+// Encryptor handles SOPS file encryption operations
 type Encryptor struct {
 	sopsPath string
 }
 
+// NewEncryptor creates a new encryptor instance with the given SOPS binary path
 func NewEncryptor(sopsPath string) *Encryptor {
 	if sopsPath == "" {
-		sopsPath = "sops"
+		sopsPath = DefaultSOPSBinary
 	}
 	cleanPath := filepath.Clean(sopsPath)
 	return &Encryptor{
@@ -30,6 +32,7 @@ func NewEncryptor(sopsPath string) *Encryptor {
 	}
 }
 
+// EncryptFile encrypts a file using SOPS with the provided age keys
 func (e *Encryptor) EncryptFile(filePath string, ageKeys []string, inPlace bool, regex string) error {
 	if err := e.validateEncryptionInputs(filePath); err != nil {
 		return err
@@ -127,7 +130,7 @@ type Decryptor struct {
 func NewDecryptor(sopsPath string) *Decryptor {
 	// Validate and clean the sops path for security
 	if sopsPath == "" {
-		sopsPath = "sops"
+		sopsPath = DefaultSOPSBinary
 	}
 	// Clean the path to prevent injection
 	cleanPath := filepath.Clean(sopsPath)
