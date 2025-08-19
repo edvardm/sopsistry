@@ -14,9 +14,17 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: '1.24'
+          cache: true
       - uses: arduino/setup-task@v2
         with:
           version: 3.x
+      - name: Cache Go tools
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin
+          key: go-tools-${{ runner.os }}-${{ hashFiles('Taskfile.yml', 'go.mod') }}
+          restore-keys: |
+            go-tools-${{ runner.os }}-
       - name: Install development tools
         run: task setup:tools
       - name: Run linter
@@ -29,9 +37,17 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: '1.24'
+          cache: true
       - uses: arduino/setup-task@v2
         with:
           version: 3.x
+      - name: Cache Go tools
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin
+          key: go-tools-${{ runner.os }}-${{ hashFiles('Taskfile.yml', 'go.mod') }}
+          restore-keys: |
+            go-tools-${{ runner.os }}-
       - name: Install development tools
         run: task setup:tools
       - name: Install age-keygen for integration tests
@@ -47,8 +63,18 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: '1.24'
+          cache: true
       - uses: arduino/setup-task@v2
         with:
           version: 3.x
+      - name: Cache Go tools
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin
+          key: go-tools-${{ runner.os }}-${{ hashFiles('Taskfile.yml', 'go.mod') }}
+          restore-keys: |
+            go-tools-${{ runner.os }}-
+      - name: Install development tools
+        run: task setup:tools
       - name: Build
         run: task build
