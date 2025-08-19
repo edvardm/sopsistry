@@ -189,6 +189,12 @@ func (s *SopsManager) generateNewAgeKey() (string, error) {
 }
 
 func (s *SopsManager) getCurrentMemberID() (string, error) {
+	// Check for override env var first
+	if envUserID := os.Getenv("SOPSISTRY_USER_ID"); envUserID != "" {
+		return envUserID, nil
+	}
+
+	// Fall back to system user
 	currentUser, err := user.Current()
 	if err != nil {
 		return "", fmt.Errorf("failed to get current user: %w", err)
