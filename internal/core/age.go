@@ -1,0 +1,66 @@
+package core
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+)
+
+func (s *TeamService) generateAgeKey(keyPath string) (string, error) {
+	if err := ensureBinaryAvailable("age-keygen", "Please install age: https://github.com/FiloSottile/age"); err != nil {
+		return "", err
+	}
+
+	cmd := exec.Command("age-keygen")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to generate age key: %w", err)
+	}
+
+	lines := strings.Split(string(output), "\n")
+	var publicKey string
+	var privateKey string
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "# public key: ") {
+			publicKey = strings.TrimPrefix(line, "# public key: ")
+		} else if strings.HasPrefix(line, "AGE-SECRET-KEY-") {
+			privateKey = line
+		}
+	}
+
+	if privateKey == "" || publicKey == "" {
+		return "", fmt.Errorf("failed to parse age-keygen output")
+	}
+
+	if err := os.WriteFile(keyPath, []byte(privateKey+"\n"), 0o600); err != nil {
+		return "", fmt.Errorf("failed to write private key: %w", err)
+	}
+
+	fmt.Printf("Generated age key pair:\n")
+	fmt.Printf("  Public key:  %s\n", publicKey)
+	fmt.Printf("  Private key: %s (saved)\n", keyPath)
+
+	return publicKey, nil
+}
+
+func (s *TeamService) getPublicKeyFromPrivateKey(keyPath string) (string, error) {
+	if err := ensureBinaryAvailable("age-keygen", "Please install age: https://github.com/FiloSottile/age"); err != nil {
+		return "", err
+	}
+
+	cmd := exec.Command("age-keygen", "-y", keyPath)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to extract public key from %s: %w", keyPath, err)
+	}
+
+	publicKey := strings.TrimSpace(string(output))
+	if publicKey == "" {
+		return "", fmt.Errorf("failed to extract public key from %s", keyPath)
+	}
+
+	return publicKey, nil
+}

@@ -1,0 +1,186 @@
+# https://taskfile.dev
+
+version: "3"
+
+vars:
+  BINARY_NAME: sistry
+  BUILD_DIR: cmd
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null
+  COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null
+  BUILD_DATE:
+    sh: date -u +"%Y-%m-%dT%H:%M:%SZ"
+  LDFLAGS: -X github.com/edvardm/sopsistry/internal/cmd.version={{.VERSION}} -X github.com/edvardm/sopsistry/internal/cmd.commit={{.COMMIT}} -X github.com/edvardm/sopsistry/internal/cmd.date={{.BUILD_DATE}}
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  setup:
+    desc: Set up development environment
+    deps: [setup:deps, setup:tools]
+
+  setup:deps:
+    desc: Download and tidy Go dependencies
+    sources:
+      - go.mod
+      - go.sum
+    cmds:
+      - go mod download
+      - go mod tidy
+
+  setup:tools:
+    desc: Install development tools
+    cmds:
+      - cmd: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+        ignore_error: true
+      - cmd: go install golang.org/x/tools/cmd/goimports@latest
+        ignore_error: true
+      - cmd: go install mvdan.cc/gofumpt@latest
+        ignore_error: true
+      - cmd: go install github.com/daixiang0/gci@latest
+        ignore_error: true
+      - cmd: go install github.com/uudashr/gocognit/cmd/gocognit@latest
+        ignore_error: true
+
+  fmt:
+    desc: Format code
+    sources:
+      - "**/*.go"
+    cmds:
+      - goimports -w .
+      - go fmt ./...
+
+  golint:
+    desc: Run golangci-lint
+    sources:
+      - "**/*.go"
+      - .golangci.yml
+    cmds:
+      - go vet ./...
+      - golangci-lint run --timeout=30s
+
+  gocognit:
+    desc: Run cognitive complexity checker
+    sources:
+      - "**/*.go"
+    cmds:
+      - gocognit -over 10 .
+
+  lint:
+    desc: Run all linters
+    deps: [fmt, golint, gocognit]
+
+  lint:fix:
+    desc: Run linters and automatically fix issues where possible
+    sources:
+      - "**/*.go"
+      - .golangci.yml
+    cmds:
+      - goimports -w .
+      - go fmt ./...
+      - cmd: gofumpt -w . 2>/dev/null || true
+        ignore_error: true
+      - golangci-lint run --fix --timeout=30s
+
+  test:
+    desc: Run tests
+    sources:
+      - "**/*.go"
+    cmds:
+      - go test -v -race ./...
+
+  test-coverage:
+    desc: Run tests with coverage report
+    deps: [test]
+    cmds:
+      - go tool cover -html=coverage.out -o coverage.html ./...
+      - echo "Coverage report generated - coverage.html"
+
+  build:
+    desc: Build binary
+    sources:
+      - "**/*.go"
+      - go.mod
+      - go.sum
+    generates:
+      - "{{.BUILD_DIR}}/{{.BINARY_NAME}}"
+    cmds:
+      - mkdir -p {{.BUILD_DIR}}
+      - go build -ldflags "{{.LDFLAGS}}" -o {{.BUILD_DIR}}/{{.BINARY_NAME}} .
+
+  build-all:
+    desc: Build for all platforms
+    sources:
+      - "**/*.go"
+      - go.mod
+      - go.sum
+    generates:
+      - "{{.BUILD_DIR}}/{{.BINARY_NAME}}-*"
+    cmds:
+      - mkdir -p {{.BUILD_DIR}}
+      - GOOS=linux GOARCH=amd64 go build -ldflags "{{.LDFLAGS}}" -o {{.BUILD_DIR}}/{{.BINARY_NAME}}-linux-amd64 .
+      - GOOS=darwin GOARCH=amd64 go build -ldflags "{{.LDFLAGS}}" -o {{.BUILD_DIR}}/{{.BINARY_NAME}}-darwin-amd64 .
+      - GOOS=darwin GOARCH=arm64 go build -ldflags "{{.LDFLAGS}}" -o {{.BUILD_DIR}}/{{.BINARY_NAME}}-darwin-arm64 .
+
+  install:
+    desc: Install binary
+    deps: [build]
+    cmds:
+      - go install -ldflags "{{.LDFLAGS}}" .
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -rf {{.BUILD_DIR}}
+      - rm -f coverage.out coverage.html
+
+  deps-check:
+    desc: Check for dependency updates
+    cmds:
+      - go list -u -m all
+
+  deps-update:
+    desc: Update dependencies
+    cmds:
+      - go get -u ./...
+      - go mod tidy
+
+  security:
+    desc: Run security checks
+    cmds:
+      - cmd: govulncheck ./...
+        ignore_error: true
+      - cmd: gosec ./...
+        ignore_error: true
+
+  ci:
+    desc: Run CI pipeline (lint, test, build)
+    cmds:
+      - task: lint
+      - task: test
+      - task: build
+
+  dev:
+    desc: Development build and install
+    cmds:
+      - task: lint
+      - task: build
+      - task: install
+
+  release:
+    desc: Build release artifacts
+    cmds:
+      - task: lint
+      - task: test
+      - task: build-all
+
+  tech-debt:
+    silent: true
+    desc: Scan for technical debt - FIXMEs, linter ignores, and TODOs
+    cmds:
+      - ./scripts/tech-debt.sh
+
