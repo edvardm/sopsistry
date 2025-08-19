@@ -1,0 +1,213 @@
+# See: https://golangci-lint.run/docs/configuration/
+version: "2"
+
+run:
+  timeout: 10s
+  go: "1.23"
+  tests: true
+  skip-dirs:
+    - vendor
+    - .secrets
+    - tools
+
+# Enable strict linters for production security tool
+linters:
+  disable-all: true
+  enable:
+    - errcheck      # Error checking is CRITICAL for secrets tools
+    - gosec         # Security vulnerabilities detection
+    - govet         # Standard Go vet
+    #
+    # static analysis
+    - staticcheck   # Most comprehensive static analysis
+    - unused        # Unused code detection
+    - ineffassign   # Ineffectual assignments
+    - revive        # Replacement for golint - enable with custom config
+    
+    # Code quality & style
+    - misspell      # Spelling mistakes
+    - unconvert     # Remove unnecessary conversions
+    - unparam       # Unused function parameters
+    - gocritic      # Opinionated Go source code linter
+    - prealloc      # Preallocate slices for performance
+    - copyloopvar   # Check loop variable reference bugs
+    - dupl          # Detect duplicated code blocks
+    - dogsled       # Check assignments with too many blank identifiers
+    - gocognit      # Computes and checks cognitive complexity
+    
+    # Additional valuable linters
+    - bodyclose     # Check HTTP response body is closed
+    - contextcheck  # Check context usage
+    - errorlint     # Error wrapping best practices (Go 1.13+)
+    - exhaustive    # Check enum switch exhaustiveness
+    - forcetypeassert # Find forced type assertions
+    - goconst       # Find repeated strings that could be constants
+    - nilerr        # Find nil error returns with non-nil values
+    - noctx         # Detect missing context.Context usage
+    - rowserrcheck  # Check sql.Rows.Err
+    - thelper       # Check test helpers start with t.Helper()
+    - wastedassign  # Find wasted assignments
+    - bidichk       # Check for dangerous Unicode sequences
+    - durationcheck # Check duration multiplications
+    - errname       # Check error naming conventions
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+    ignore: ""  # Don't ignore anything by default
+    
+  gosec:
+    severity: "medium"
+    confidence: "medium"
+    excludes:
+      - G104  # handled by errcheck
+    rules:
+      G101: true  # Look for hard coded credentials
+      G102: true  # Bind to all interfaces
+      G103: true  # Audit the use of unsafe block
+      G104: false # Handled by errcheck
+      G106: true  # Audit the use of ssh.InsecureIgnoreHostKey
+      G107: true  # Url provided to HTTP request as taint input
+      G108: true  # Profiling endpoint automatically exposed on /debug/pprof
+      G109: true  # Potential Integer overflow made by strconv.Atoi result conversion to int16/32
+      G110: true  # Potential DoS vulnerability via decompression bomb
+      G204: true  # Audit use of command execution
+      G301: true  # Poor file permissions used when creating a directory
+      G302: true  # Poor file permissions used with chmod
+      G303: true  # Creating tempfile using a predictable path
+      G304: true  # File path provided as taint input
+      G305: true  # File traversal when extracting zip/tar archive
+      G306: true  # Poor file permissions used when writing to a new file
+      G307: true  # Deferring a method which returns an error
+      G401: true  # Detect the usage of DES, RC4, MD5 or SHA1
+      G402: true  # Look for bad TLS connection settings
+      G403: true  # Ensure minimum RSA key length of 2048 bits
+      G404: true  # Insecure random number source (rand)
+      G501: true  # Import blocklist: crypto/md5
+      G502: true  # Import blocklist: crypto/des
+      G503: true  # Import blocklist: crypto/rc4
+      G504: true  # Import blocklist: net/http/cgi
+      G505: true  # Import blocklist: crypto/sha1
+      G601: true  # Implicit memory aliasing of items from a range statement
+      
+  staticcheck:
+    checks: ["all"]
+    
+  govet:
+    enable-all: true
+    
+  revive:
+    severity: warning
+    confidence: 0.8
+    rules:
+      - name: exported
+        disabled: true  # Disable comment requirements for exported items
+      - name: package-comments
+      - name: indent-error-flow
+      - name: add-constant
+      - name: flag-parameter
+      - name: unused-parameter
+        
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    enabled-checks:
+      - boolExprSimplify    # Detects bool expressions that can be simplified
+      - ifElseChain         # Detects if-else chains that can be rewritten as switch
+      - singleCaseSwitch    # Detects switch statements with single case
+      - typeSwitchVar       # Detects type switches that can assign to the same variable
+      - assignOp            # Detects assignments that can use assignment operators
+      - rangeExprCopy       # Detects expensive copies in range loops
+      - switchTrue          # Detects switch true that can be rewritten
+      - yodaStyleExpr       # Detects Yoda-style expressions
+    disabled-checks:
+      - dupImport # https://github.com/go-critic/go-critic/issues/845
+      - octalLiteral
+      - whyNoLint
+      
+  dupl:
+    threshold: 100
+    
+  gofumpt:
+    lang-version: "1.23"
+    extra-rules: true     # Enable extra formatting rules
+    
+  gci:
+    sections:
+      - standard                           # Standard library
+      - default                           # External packages  
+      - prefix(github.com/edvardm/sopsistry) # Local packages
+    skip-generated: true
+
+# Issues configuration  
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  
+  # Don't hide multiple issues of same type
+  exclude-use-default: false
+  
+  exclude-rules:
+    # Allow some laxness in test files
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+        - revive
+        - gocritic
+        
+    # CLI-specific exceptions
+    - text: "Error return value.*MarkFlagRequired.*is not checked"
+      linters:
+        - errcheck
+        
+    # Cobra unused parameters in RunE functions
+    - text: "unused-parameter.*seems to be unused.*cobra\\.Command"
+      linters:
+        - revive
+        
+    # Known safe patterns in defer statements  
+    - text: "Error return value.*defer.*Close.*is not checked"
+      linters:
+        - errcheck
+        
+    # Cobra command setup patterns
+    - text: "should not use dot imports"
+      path: internal/cmd/
+      linters:
+        - revive
+    
+    # Skip tools directory completely
+    - path: "tools/"
+      linters:
+        - errcheck
+        - gosec
+        - revive
+        - gocritic
+        - prealloc
+    - path: "tools/.*\\.go"
+      linters:
+        - errcheck
+        - gosec  
+        - revive
+        - gocritic
+        - prealloc
+        
+    # Disable comment-related linting rules
+    - text: "should have a package comment"
+      linters:
+        - revive
+    - text: "exported .* should have comment"
+      linters:
+        - revive
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+  sort-results: true
