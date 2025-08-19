@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"time"
 )
 
 // TeamService handles all SOPS team management operations
@@ -46,7 +47,7 @@ func (s *TeamService) Init(force bool) error {
 		return err
 	}
 
-	manifest := s.createInitialManifest(memberID, publicKey)
+	manifest := s.createInitialManifest(memberID, publicKey, time.Now().UTC())
 	if err := manifest.Save(s.configPath); err != nil {
 		return fmt.Errorf("failed to create manifest: %w", err)
 	}
@@ -107,12 +108,13 @@ func (s *TeamService) getCurrentMemberID() (string, error) {
 	return memberID, nil
 }
 
-func (s *TeamService) createInitialManifest(memberID, publicKey string) *Manifest {
+func (s *TeamService) createInitialManifest(memberID, publicKey string, created time.Time) *Manifest {
 	return &Manifest{
 		Members: []Member{
 			{
-				ID:     memberID,
-				AgeKey: publicKey,
+				ID:      memberID,
+				AgeKey:  publicKey,
+				Created: created,
 			},
 		},
 		Scopes: []Scope{
@@ -123,7 +125,8 @@ func (s *TeamService) createInitialManifest(memberID, publicKey string) *Manifes
 			},
 		},
 		Settings: Settings{
-			SopsVersion: "3.8.0",
+			SopsVersion:   "3.8.0",
+			MaxKeyAgeDays: 180, // default 6 months
 		},
 	}
 }
@@ -230,8 +233,9 @@ func (s *TeamService) AddMember(id, ageKey string) error {
 	}
 
 	manifest.Members = append(manifest.Members, Member{
-		ID:     id,
-		AgeKey: ageKey,
+		ID:      id,
+		AgeKey:  ageKey,
+		Created: time.Now().UTC(),
 	})
 
 	for i := range manifest.Scopes {
@@ -362,4 +366,191 @@ func (s *TeamService) ShowSOPSCommand(args []string, execute bool) error {
 
 	er := NewSOPSHelper(s.sopsPath, s.secretsDir)
 	return er.ShowCommand(args, ageKeys, execute)
+}
+
+// RotateKey rotates the current user's age key
+func (s *TeamService) RotateKey(force bool) error {
+	manifest, currentMember, err := s.prepareKeyRotation(force)
+	if err != nil {
+		return err
+	}
+
+	keyPath := filepath.Join(s.secretsDir, "key.txt")
+	backupPath := keyPath + ".backup"
+
+	if err := s.backupCurrentKey(keyPath, backupPath); err != nil {
+		return err
+	}
+	defer func() { _ = os.Remove(backupPath) }()
+
+	return s.executeKeyRotation(manifest, currentMember, keyPath, backupPath)
+}
+
+func (s *TeamService) prepareKeyRotation(force bool) (*Manifest, *Member, error) {
+	manifest, err := LoadManifest(s.configPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to load manifest: %w", err)
+	}
+
+	currentUser, err := s.getCurrentMemberID()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	currentMember := s.findMemberByID(manifest, currentUser)
+	if currentMember == nil {
+		return nil, nil, fmt.Errorf("current user %s not found in team", currentUser)
+	}
+
+	if !force {
+		if err := s.checkKeyExpiry(currentMember, manifest.Settings.MaxKeyAgeDays); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return manifest, currentMember, nil
+}
+
+func (s *TeamService) findMemberByID(manifest *Manifest, userID string) *Member {
+	for i := range manifest.Members {
+		if manifest.Members[i].ID == userID {
+			return &manifest.Members[i]
+		}
+	}
+	return nil
+}
+
+func (s *TeamService) executeKeyRotation(manifest *Manifest, currentMember *Member, keyPath, backupPath string) error {
+	newPublicKey, err := s.generateAgeKey(keyPath)
+	if err != nil {
+		return s.handleRotationError("failed to generate new key", err, keyPath, backupPath)
+	}
+
+	currentMember.AgeKey = newPublicKey
+	currentMember.Created = time.Now().UTC()
+
+	if err := manifest.Save(s.configPath); err != nil {
+		return s.handleRotationError("failed to save manifest", err, keyPath, backupPath)
+	}
+
+	if err := s.reencryptAllFiles(manifest, keyPath, backupPath); err != nil {
+		return err
+	}
+
+	s.printRotationSuccess(currentMember)
+	return nil
+}
+
+func (s *TeamService) reencryptAllFiles(manifest *Manifest, keyPath, backupPath string) error {
+	planner := NewPlanner(s.sopsPath)
+	plan, err := planner.ComputePlan(manifest)
+	if err != nil {
+		return s.handleRotationError("failed to compute plan", err, keyPath, backupPath)
+	}
+
+	executor := NewExecutor(s.sopsPath)
+	if err := executor.Execute(plan); err != nil {
+		return s.handleRotationError("failed to re-encrypt files", err, keyPath, backupPath)
+	}
+
+	return nil
+}
+
+func (s *TeamService) printRotationSuccess(member *Member) {
+	_, _ = fmt.Fprintf(s.output, "🔄 Successfully rotated key for %s\n", member.ID)
+	_, _ = fmt.Fprintf(s.output, "📅 New key created: %s\n", member.Created.Format("2006-01-02T15:04:05Z"))
+}
+
+func (s *TeamService) backupCurrentKey(keyPath, backupPath string) error {
+	if err := validateFilePath(keyPath); err != nil {
+		return fmt.Errorf("invalid key path: %w", err)
+	}
+	if err := validateFilePath(backupPath); err != nil {
+		return fmt.Errorf("invalid backup path: %w", err)
+	}
+
+	if _, err := os.Stat(keyPath); err == nil {
+		data, err := os.ReadFile(keyPath) //nolint:gosec // Path validated by validateFilePath
+		if err != nil {
+			return fmt.Errorf("failed to read current key: %w", err)
+		}
+		if err := os.WriteFile(backupPath, data, 0o600); err != nil {
+			return fmt.Errorf("failed to backup key: %w", err)
+		}
+	}
+	return nil
+}
+
+func (s *TeamService) handleRotationError(msg string, err error, keyPath, backupPath string) error {
+	// Restore backup
+	if _, backupErr := os.Stat(backupPath); backupErr == nil {
+		if data, readErr := os.ReadFile(backupPath); readErr == nil { //nolint:gosec // Path validated during backup creation
+			_ = os.WriteFile(keyPath, data, 0o600)
+		}
+	}
+	return fmt.Errorf("%s: %w", msg, err)
+}
+
+func (s *TeamService) checkKeyExpiry(member *Member, maxAgeDays int) error {
+	if maxAgeDays <= 0 {
+		maxAgeDays = 180 // default 6 months
+	}
+
+	age := time.Since(member.Created)
+	maxAge := time.Duration(maxAgeDays) * 24 * time.Hour
+
+	if age > maxAge {
+		return fmt.Errorf("key has expired (age: %d days, max: %d days). Use --force to rotate anyway",
+			int(age.Hours()/24), maxAgeDays)
+	}
+
+	return nil
+}
+
+// CheckKeyExpiry checks if any keys are expired or expiring soon
+func (s *TeamService) CheckKeyExpiry() error {
+	manifest, err := LoadManifest(s.configPath)
+	if err != nil {
+		return fmt.Errorf("failed to load manifest: %w", err)
+	}
+
+	maxAgeDays := manifest.Settings.MaxKeyAgeDays
+	if maxAgeDays <= 0 {
+		maxAgeDays = 180 // default 6 months
+	}
+
+	warnings := 0
+	errors := 0
+	now := time.Now()
+
+	for _, member := range manifest.Members {
+		age := now.Sub(member.Created)
+		maxAge := time.Duration(maxAgeDays) * 24 * time.Hour
+		warningThreshold := maxAge - (14 * 24 * time.Hour) // 2 weeks before expiry
+
+		switch {
+		case age > maxAge:
+			_, _ = fmt.Fprintf(s.output, "❌ %s: key expired %d days ago (created: %s)\n",
+				member.ID, int((age-maxAge).Hours()/24), member.Created.Format("2006-01-02"))
+			errors++
+		case age > warningThreshold:
+			daysUntilExpiry := int((maxAge - age).Hours() / 24)
+			_, _ = fmt.Fprintf(s.output, "⚠️  %s: key expires in %d days (created: %s)\n",
+				member.ID, daysUntilExpiry, member.Created.Format("2006-01-02"))
+			warnings++
+		default:
+			daysAge := int(age.Hours() / 24)
+			_, _ = fmt.Fprintf(s.output, "✅ %s: key is %d days old (created: %s)\n",
+				member.ID, daysAge, member.Created.Format("2006-01-02"))
+		}
+	}
+
+	if errors > 0 {
+		_, _ = fmt.Fprintf(s.output, "\n%d expired keys found. Run 'sopsistry rotate-key' to rotate.\n", errors)
+	}
+	if warnings > 0 {
+		_, _ = fmt.Fprintf(s.output, "\n%d keys expiring soon. Consider running 'sopsistry rotate-key'.\n", warnings)
+	}
+
+	return nil
 }

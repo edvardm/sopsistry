@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestTeamService_CheckInitialization(t *testing.T) {
@@ -59,7 +60,7 @@ func TestTeamService_CreateInitialManifest(t *testing.T) {
 	memberID := "testuser"
 	publicKey := "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
 
-	manifest := service.createInitialManifest(memberID, publicKey)
+	manifest := service.createInitialManifest(memberID, publicKey, time.Now().UTC())
 
 	if len(manifest.Members) != 1 {
 		t.Errorf("expected 1 member, got %d", len(manifest.Members))

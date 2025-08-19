@@ -4,14 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
 // Member represents a team member with their age key
 type Member struct {
-	ID     string `yaml:"id" json:"id"`
-	AgeKey string `yaml:"age_key" json:"age_key"`
+	ID      string    `yaml:"id" json:"id"`
+	AgeKey  string    `yaml:"age_key" json:"age_key"`
+	Created time.Time `yaml:"created" json:"created"`
 }
 
 // Scope defines which files are encrypted for which members
@@ -23,7 +25,8 @@ type Scope struct {
 
 // Settings contains global configuration
 type Settings struct {
-	SopsVersion string `yaml:"sops_version" json:"sops_version"`
+	SopsVersion   string `yaml:"sops_version" json:"sops_version"`
+	MaxKeyAgeDays int    `yaml:"max_key_age_days,omitempty" json:"max_key_age_days,omitempty"`
 }
 
 // Manifest represents the sopsistry.yaml configuration
