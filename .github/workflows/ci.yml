@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ master ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ master ]
 
 jobs:
   lint:
@@ -17,6 +17,8 @@ jobs:
       - uses: arduino/setup-task@v2
         with:
           version: 3.x
+      - name: Install development tools
+        run: task setup:tools
       - name: Run linter
         run: task lint
 
@@ -30,6 +32,8 @@ jobs:
       - uses: arduino/setup-task@v2
         with:
           version: 3.x
+      - name: Install development tools
+        run: task setup:tools
       - name: Install age-keygen for integration tests
         run: go install filippo.io/age/cmd/age-keygen@latest
       - name: Run tests
