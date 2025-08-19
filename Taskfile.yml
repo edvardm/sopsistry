@@ -20,31 +20,55 @@ tasks:
       - task --list
 
   setup:
-    desc: Set up development environment
+    desc: Set up development environment (idempotent)
     deps: [setup:deps, setup:tools]
 
   setup:deps:
     desc: Download and tidy Go dependencies
     sources:
       - go.mod
+    generates:
       - go.sum
     cmds:
       - go mod download
       - go mod tidy
 
   setup:tools:
-    desc: Install development tools
+    desc: Install development tools (idempotent)
     cmds:
-      - cmd: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-        ignore_error: true
-      - cmd: go install golang.org/x/tools/cmd/goimports@latest
-        ignore_error: true
-      - cmd: go install mvdan.cc/gofumpt@latest
-        ignore_error: true
-      - cmd: go install github.com/daixiang0/gci@latest
-        ignore_error: true
-      - cmd: go install github.com/uudashr/gocognit/cmd/gocognit@latest
-        ignore_error: true
+      - task: install-tool
+        vars: 
+          TOOL_PKG: github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          TOOL_NAME: golangci-lint
+      - task: install-tool
+        vars:
+          TOOL_PKG: golang.org/x/tools/cmd/goimports@latest
+          TOOL_NAME: goimports
+      - task: install-tool
+        vars:
+          TOOL_PKG: mvdan.cc/gofumpt@latest
+          TOOL_NAME: gofumpt
+      - task: install-tool
+        vars:
+          TOOL_PKG: github.com/daixiang0/gci@latest
+          TOOL_NAME: gci
+      - task: install-tool
+        vars:
+          TOOL_PKG: github.com/uudashr/gocognit/cmd/gocognit@latest
+          TOOL_NAME: gocognit
+      - task: install-tool
+        vars:
+          TOOL_PKG: gotest.tools/gotestsum@latest
+          TOOL_NAME: gotestsum
+
+  install-tool:
+    desc: Install a Go tool if not present
+    internal: true
+    silent: true
+    status:
+      - command -v "{{.TOOL_NAME}}" >/dev/null 2>&1
+    cmds:
+      - go install {{.TOOL_PKG}}
 
   fmt:
     desc: Format code
@@ -61,14 +85,14 @@ tasks:
       - .golangci.yml
     cmds:
       - go vet ./...
-      - golangci-lint run --timeout=30s
+      - golangci-lint run --timeout=10s
 
   gocognit:
     desc: Run cognitive complexity checker
     sources:
       - "**/*.go"
     cmds:
-      - gocognit -over 10 .
+      - gocognit -over 10 -avg .
 
   lint:
     desc: Run all linters
@@ -90,15 +114,17 @@ tasks:
     desc: Run tests
     sources:
       - "**/*.go"
-    cmds:
-      - go test -v -race ./...
+    cmd: gotestsum --format=testdox --hide-summary=skipped -- -race ./...
+
+  test-watch:
+    desc: Watch and run tests on file changes
+    cmd: gotestsum --watch --format=testdox -- -race ./...
 
   test-coverage:
     desc: Run tests with coverage report
     deps: [test]
     cmds:
       - go tool cover -html=coverage.out -o coverage.html ./...
-      - echo "Coverage report generated - coverage.html"
 
   build:
     desc: Build binary
@@ -180,7 +206,7 @@ tasks:
 
   tech-debt:
     silent: true
-    desc: Scan for technical debt - FIXMEs, linter ignores, and TODOs
+    desc: Scan for marked technical debt
     cmds:
       - ./scripts/tech-debt.sh
 
