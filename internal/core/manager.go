@@ -650,10 +650,10 @@ func (s *SopsManager) CheckKeyExpiry(verbose bool) error {
 	}
 
 	if errors > 0 {
-		_, _ = fmt.Fprintf(s.output, "\n%d expired keys found. Run 'sopsistry rotate-key' to rotate.\n", errors)
+		_, _ = fmt.Fprintf(s.output, "\n%d expired keys found. Run 'sistry rotate-key' to rotate.\n", errors)
 	}
 	if warnings > 0 {
-		_, _ = fmt.Fprintf(s.output, "\n%d keys expiring soon. Consider running 'sopsistry rotate-key'.\n", warnings)
+		_, _ = fmt.Fprintf(s.output, "\n%d keys expiring soon. Consider running 'sistry rotate-key'.\n", warnings)
 	}
 
 	return nil
