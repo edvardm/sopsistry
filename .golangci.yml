@@ -3,12 +3,8 @@ version: "2"
 
 run:
   timeout: 10s
-  go: "1.23"
+  go: "1.24"
   tests: true
-  skip-dirs:
-    - vendor
-    - .secrets
-    - tools
 
 # Enable strict linters for production security tool
 linters:
@@ -134,7 +130,6 @@ linters-settings:
     threshold: 100
     
   gofumpt:
-    lang-version: "1.23"
     extra-rules: true     # Enable extra formatting rules
     
   gci:
@@ -151,6 +146,11 @@ issues:
   
   # Don't hide multiple issues of same type
   exclude-use-default: false
+  
+  exclude-dirs:
+    - vendor
+    - .secrets
+    - tools
   
   exclude-rules:
     # Allow some laxness in test files
