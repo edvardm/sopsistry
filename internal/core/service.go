@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"slices"
 	"time"
 )
 
@@ -226,10 +227,13 @@ func (s *TeamService) AddMember(id, ageKey string) error {
 		return fmt.Errorf("failed to load manifest: %w", err)
 	}
 
+	// Extract member IDs for efficient lookup
+	memberIDs := make([]string, 0, len(manifest.Members))
 	for _, member := range manifest.Members {
-		if member.ID == id {
-			return fmt.Errorf("member %s already exists", id)
-		}
+		memberIDs = append(memberIDs, member.ID)
+	}
+	if slices.Contains(memberIDs, id) {
+		return fmt.Errorf("member %s already exists", id)
 	}
 
 	manifest.Members = append(manifest.Members, Member{
@@ -492,9 +496,7 @@ func (s *TeamService) handleRotationError(msg string, err error, keyPath, backup
 }
 
 func (s *TeamService) checkKeyExpiry(member *Member, maxAgeDays int) error {
-	if maxAgeDays <= 0 {
-		maxAgeDays = 180 // default 6 months
-	}
+	maxAgeDays = max(maxAgeDays, 180) // ensure minimum of 180 days (6 months)
 
 	age := time.Since(member.Created)
 	maxAge := time.Duration(maxAgeDays) * 24 * time.Hour
@@ -514,10 +516,7 @@ func (s *TeamService) CheckKeyExpiry() error {
 		return fmt.Errorf("failed to load manifest: %w", err)
 	}
 
-	maxAgeDays := manifest.Settings.MaxKeyAgeDays
-	if maxAgeDays <= 0 {
-		maxAgeDays = 180 // default 6 months
-	}
+	maxAgeDays := max(manifest.Settings.MaxKeyAgeDays, 180) // ensure minimum of 180 days (6 months)
 
 	warnings := 0
 	errors := 0

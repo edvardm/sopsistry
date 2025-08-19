@@ -25,8 +25,8 @@ func (s *TeamService) generateAgeKey(keyPath string) (string, error) {
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "# public key: ") {
-			publicKey = strings.TrimPrefix(line, "# public key: ")
+		if after, ok := strings.CutPrefix(line, "# public key: "); ok {
+			publicKey = after
 		} else if strings.HasPrefix(line, "AGE-SECRET-KEY-") {
 			privateKey = line
 		}

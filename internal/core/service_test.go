@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 )
@@ -362,10 +363,8 @@ func verifyMemberExistsInDefaultScope(t *testing.T, manifest *Manifest, memberID
 
 	for _, scope := range manifest.Scopes {
 		if scope.Name == "default" {
-			for _, scopeMemberID := range scope.Members {
-				if scopeMemberID == memberID {
-					return // Found member in default scope
-				}
+			if slices.Contains(scope.Members, memberID) {
+				return // Found member in default scope
 			}
 			t.Errorf("member %s was not found in default scope", memberID)
 			return
@@ -406,11 +405,9 @@ func verifyMemberNotInAnyScope(t *testing.T, manifest *Manifest, memberID string
 	t.Helper()
 
 	for _, scope := range manifest.Scopes {
-		for _, scopeMemberID := range scope.Members {
-			if scopeMemberID == memberID {
-				t.Errorf("member %s was not removed from scope %s", memberID, scope.Name)
-				return
-			}
+		if slices.Contains(scope.Members, memberID) {
+			t.Errorf("member %s was not removed from scope %s", memberID, scope.Name)
+			return
 		}
 	}
 }

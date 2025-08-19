@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 )
 
@@ -65,7 +66,8 @@ func (s *TeamService) readGitignoreLines(gitignorePath string) ([]string, bool) 
 }
 
 func (s *TeamService) isSecretsIgnorePattern(line string) bool {
-	return line == ".secrets" || line == ".secrets/" || line == "/.secrets"
+	patterns := []string{".secrets", ".secrets/", "/.secrets"}
+	return slices.Contains(patterns, line)
 }
 
 func (s *TeamService) addSecretsToGitignore(gitignorePath string, lines []string) error {
