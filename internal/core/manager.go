@@ -332,10 +332,7 @@ func (s *SopsManager) AddMember(id, ageKey string) error {
 	}
 
 	// Extract member IDs for efficient lookup
-	memberIDs := make([]string, 0, len(manifest.Members))
-	for _, member := range manifest.Members {
-		memberIDs = append(memberIDs, member.ID)
-	}
+	memberIDs := MapSlice(manifest.Members, func(m Member) string { return m.ID })
 	if slices.Contains(memberIDs, id) {
 		return fmt.Errorf("member %s already exists", id)
 	}
@@ -384,13 +381,12 @@ func (s *SopsManager) RemoveMember(id string) error {
 }
 
 func (s *SopsManager) removeMemberFromManifest(manifest *Manifest, id string) error {
-	for i, member := range manifest.Members {
-		if member.ID == id {
-			manifest.Members = append(manifest.Members[:i], manifest.Members[i+1:]...)
-			return nil
-		}
+	filtered := Filter(manifest.Members, func(m Member) bool { return m.ID != id })
+	if len(filtered) == len(manifest.Members) {
+		return fmt.Errorf("member %s not found", id)
 	}
-	return fmt.Errorf("member %s not found", id)
+	manifest.Members = filtered
+	return nil
 }
 
 func (s *SopsManager) removeMemberFromAllScopes(manifest *Manifest, id string) {
@@ -400,12 +396,7 @@ func (s *SopsManager) removeMemberFromAllScopes(manifest *Manifest, id string) {
 }
 
 func (s *SopsManager) removeMemberFromScope(scope *Scope, id string) {
-	for j, memberID := range scope.Members {
-		if memberID == id {
-			scope.Members = append(scope.Members[:j], scope.Members[j+1:]...)
-			break
-		}
-	}
+	scope.Members = Filter(scope.Members, func(memberID string) bool { return memberID != id })
 }
 
 func (s *SopsManager) printRemovalSuccess(id string) {
@@ -435,10 +426,7 @@ func (s *SopsManager) EncryptFile(filePath string, inPlace bool, regex string) e
 		return fmt.Errorf(FailedToLoadManifestMsg, err)
 	}
 
-	var ageKeys []string //nolint:prealloc // Small team sizes, optimization not worth it
-	for _, member := range manifest.Members {
-		ageKeys = append(ageKeys, member.AgeKey)
-	}
+	ageKeys := MapSlice(manifest.Members, func(m Member) string { return m.AgeKey })
 
 	if len(ageKeys) == 0 {
 		return fmt.Errorf("no team members found in configuration")
@@ -480,10 +468,7 @@ func (s *SopsManager) handleSOPSCommand(args []string, execute bool) error { //n
 		return fmt.Errorf(FailedToLoadManifestMsg, err)
 	}
 
-	var ageKeys []string //nolint:prealloc // Small team sizes, optimization not worth it
-	for _, member := range manifest.Members {
-		ageKeys = append(ageKeys, member.AgeKey)
-	}
+	ageKeys := MapSlice(manifest.Members, func(m Member) string { return m.AgeKey })
 
 	if len(ageKeys) == 0 {
 		return fmt.Errorf("no team members found in configuration")

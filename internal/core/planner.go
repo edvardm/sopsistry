@@ -78,30 +78,23 @@ func (p *Planner) planScopeActions(scope Scope, manifest *Manifest) ([]Action, e
 }
 
 func (p *Planner) createSkipActions(files []string, scopeName string) []Action {
-	actions := make([]Action, 0, DefaultSliceCapacity)
-	for _, file := range files {
-		actions = append(actions, Action{
+	return MapSlice(files, func(file string) Action {
+		return Action{
 			Type:        ActionSkip,
 			File:        file,
 			Scope:       scopeName,
 			Recipients:  []string{},
 			Description: "No members in scope",
-		})
-	}
-	return actions
+		}
+	})
 }
 
 func (p *Planner) extractAgeKeys(members []Member) []string {
-	recipients := make([]string, 0, DefaultSliceCapacity)
-	for _, member := range members {
-		recipients = append(recipients, member.AgeKey)
-	}
-	return recipients
+	return MapSlice(members, func(m Member) string { return m.AgeKey })
 }
 
 func (p *Planner) createFileActions(files []string, scopeName string, recipients []string) []Action {
-	actions := make([]Action, 0, DefaultSliceCapacity)
-	for _, file := range files {
+	return MapSlice(files, func(file string) Action {
 		actionType := ActionEncrypt
 		description := "Encrypt with current team"
 
@@ -110,15 +103,14 @@ func (p *Planner) createFileActions(files []string, scopeName string, recipients
 			description = "Re-encrypt with updated team"
 		}
 
-		actions = append(actions, Action{
+		return Action{
 			Type:        actionType,
 			File:        file,
 			Scope:       scopeName,
 			Recipients:  recipients,
 			Description: description,
-		})
-	}
-	return actions
+		}
+	})
 }
 
 // Display shows the plan in human-readable format
@@ -228,12 +220,13 @@ func (p *Planner) findFilesForPattern(pattern string, seen map[string]bool) ([]s
 		return nil, fmt.Errorf("invalid pattern %s: %w", pattern, err)
 	}
 
-	var files []string
-	for _, match := range matches {
-		if p.shouldIncludeFile(match, seen) {
-			files = append(files, match)
-			seen[match] = true
-		}
+	files := Filter(matches, func(match string) bool {
+		return p.shouldIncludeFile(match, seen)
+	})
+
+	// Mark filtered files as seen
+	for _, file := range files {
+		seen[file] = true
 	}
 
 	return files, nil
