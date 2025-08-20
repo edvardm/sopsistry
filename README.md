@@ -3,7 +3,6 @@
 A command-line tool for managing team-based secret encryption, built on top of
 [SOPS](https://github.com/mozilla/sops) and [age](https://github.com/FiloSottile/age).
 
-
 ## Rationale
 
 SOPS provides robust cryptographic capabilities for secret management but lacks support for team-oriented workflows.
@@ -50,7 +49,6 @@ Sopsistry is intended to be for SOPS kind of like what docker-compose is to dock
 You don't need to know how to use SOPS, but Sopsistry can coexist with it -- it just makes
 it easier for most common uses cases within a team.
 
-
 ## Prerequisites
 
 - [SOPS](https://github.com/mozilla/sops)
@@ -80,10 +78,11 @@ sistry encrypt --help --iregex '(password|token)' prod.env
 
 # Decrypt file to stdout, works regardless of who encrypted the file, as long
 # as user is member of the team
-sistry decrypt prod.envs
+sistry decrypt prod.env
 ```
 
 ## TODO
+
 - support at least KMS to decrypt secrets in typical cloud deploy environments
 - super easy secret rotation
 - TUI?
@@ -91,7 +90,6 @@ sistry decrypt prod.envs
   staging/prod access requires separate access etc
 - extend `check` to ensure configuration is valid, e.g. all members have age keys, user's
   age key is in the config, key is not expired etc
-
 
 ## FAQ
 
@@ -108,10 +106,9 @@ sistry decrypt prod.envs
     such secret would be much more dangerous than leaking ephemeral, software
     project specific key which is expected to change frequently.
 
-
     It is not intended to replace password managers, but rather to complement them.
-
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
+
