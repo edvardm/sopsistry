@@ -1,0 +1,55 @@
+version: 2
+
+before:
+  hooks:
+    - task lint
+    - task test
+
+builds:
+  - id: sopsistry
+    binary: sistry
+    main: ./
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+    ldflags:
+      - -s -w
+      - -X github.com/edvardm/sopsistry/internal/cmd.version={{.Version}}
+      - -X github.com/edvardm/sopsistry/internal/cmd.commit={{.ShortCommit}}
+      - -X github.com/edvardm/sopsistry/internal/cmd.date={{.Date}}
+    skip: '{{ not (regexMatch "^v[0-9]" .Tag) }}'
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+release:
+  github:
+    owner: edvardm
+    name: sopsistry
+  draft: false
+  prerelease: auto
+  name_template: "v{{ .Version }}"
+
+git:
+  tag_sort: -version:refname
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "merge conflict"
+      - Merge pull request
+      - Merge remote-tracking branch
+
+checksum:
+  name_template: "checksums.txt"
