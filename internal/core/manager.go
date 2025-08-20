@@ -645,7 +645,7 @@ func (s *SopsManager) checkKeyExpiry(member *Member, maxAgeDays int) error {
 }
 
 // CheckKeyExpiry checks if any keys are expired or expiring soon
-func (s *SopsManager) CheckKeyExpiry(verbose bool) error { //nolint:revive // verbose is a legitimate CLI flag parameter
+func (s *SopsManager) CheckKeyExpiry(verbose bool) error {
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
 		return fmt.Errorf(FailedToLoadManifestMsg, err)

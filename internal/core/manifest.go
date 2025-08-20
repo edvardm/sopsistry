@@ -58,7 +58,7 @@ func (m *Manifest) Save(path string) error {
 		return fmt.Errorf("failed to marshal manifest: %w", err)
 	}
 
-	if err := os.WriteFile(path, data, GitignoreFileMode); err != nil { //nolint:gosec // Config files use standard permissions
+	if err := os.WriteFile(path, data, GitignoreFileMode); err != nil {
 		return fmt.Errorf("failed to write manifest: %w", err)
 	}
 

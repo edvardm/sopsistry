@@ -7,15 +7,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var checkSafeCmd *SafeCommand
+
 var checkCmd = &cobra.Command{
 	Use:   "check",
 	Short: "Check SOPS configuration and key expiry status",
 	Long: `Check for existing SOPS configuration, team compatibility, and key expiry status.
 This command helps identify potential conflicts between existing .sops.yaml
 files and team-managed encryption settings, and warns about expired or expiring keys.`,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		sopsPath, _ := cmd.Flags().GetString("sops-path") //nolint:errcheck // Flag is defined, error impossible
-		verbose, _ := cmd.Flags().GetBool("verbose")      //nolint:errcheck // Flag is defined, error impossible
+	RunE: func(_ *cobra.Command, _ []string) error {
+		sopsPath := checkSafeCmd.GetStringFlag("sops-path")
+		verbose := checkSafeCmd.GetBoolFlag("verbose")
 
 		// Check SOPS configuration compatibility
 		detector := core.NewSOPSDetector()
@@ -68,6 +70,8 @@ files and team-managed encryption settings, and warns about expired or expiring 
 }
 
 func init() {
-	checkCmd.Flags().BoolP("verbose", "v", false, "show detailed key mapping information")
+	checkSafeCmd = NewSafeCommand(checkCmd)
+	checkSafeCmd.RegisterBoolFlag("verbose", false, "show detailed key mapping information")
+
 	rootCmd.AddCommand(checkCmd)
 }

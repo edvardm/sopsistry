@@ -5,6 +5,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var listSafeCmd *SafeCommand
+
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List team members and managed files",
@@ -12,9 +14,9 @@ var listCmd = &cobra.Command{
 - Team members and their age keys
 - Encrypted files under management
 - Current scope assignments`,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		sopsPath, _ := cmd.Flags().GetString("sops-path") //nolint:errcheck // Flag is defined, error impossible
-		jsonOutput, _ := cmd.Flags().GetBool("json")      //nolint:errcheck // Flag is defined, error impossible
+	RunE: func(_ *cobra.Command, _ []string) error {
+		sopsPath := listSafeCmd.GetStringFlag("sops-path")
+		jsonOutput := listSafeCmd.GetBoolFlag("json")
 
 		service := core.NewSopsManager(sopsPath)
 		return service.List(jsonOutput)
@@ -22,5 +24,8 @@ var listCmd = &cobra.Command{
 }
 
 func init() {
+	listSafeCmd = NewSafeCommand(listCmd)
+	// Uses persistent flags from root: sops-path, json
+
 	rootCmd.AddCommand(listCmd)
 }

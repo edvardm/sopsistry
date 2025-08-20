@@ -7,6 +7,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var encryptSafeCmd *SafeCommand
+
 var encryptCmd = &cobra.Command{
 	Use:     "encrypt <file>",
 	Aliases: []string{"enc"},
@@ -20,12 +22,13 @@ Examples:
   st encrypt --iregex '^(password|key)' .env # Case-insensitive partial encryption
   st encrypt --regex '.*secret.*' config.yaml # Encrypt fields containing 'secret'`,
 	Args: cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		filePath := args[0]
-		sopsPath, _ := cmd.Flags().GetString("sops-path") //nolint:errcheck // Flag is defined, error impossible
-		inPlace, _ := cmd.Flags().GetBool("in-place")     //nolint:errcheck // Flag is defined, error impossible
-		regex, _ := cmd.Flags().GetString("regex")        //nolint:errcheck // Flag is defined, error impossible
-		iregex, _ := cmd.Flags().GetString("iregex")      //nolint:errcheck // Flag is defined, error impossible
+
+		sopsPath := encryptSafeCmd.GetStringFlag("sops-path")
+		inPlace := encryptSafeCmd.GetBoolFlag("in-place")
+		regex := encryptSafeCmd.GetStringFlag("regex")
+		iregex := encryptSafeCmd.GetStringFlag("iregex")
 
 		// Check that only one of regex or iregex is provided
 		if regex != "" && iregex != "" {
@@ -43,8 +46,10 @@ Examples:
 }
 
 func init() {
-	encryptCmd.Flags().BoolP("in-place", "i", true, "encrypt file in-place")
-	encryptCmd.Flags().String("regex", "", "encrypt only fields matching this regex (partial encryption)")
-	encryptCmd.Flags().String("iregex", "", "encrypt only fields matching this case-insensitive regex (partial encryption)")
+	encryptSafeCmd = NewSafeCommand(encryptCmd)
+	encryptSafeCmd.RegisterBoolFlag("in-place", true, "encrypt file in-place")
+	encryptSafeCmd.RegisterStringFlag("regex", "", "encrypt only fields matching this regex (partial encryption)")
+	encryptSafeCmd.RegisterStringFlag("iregex", "", "encrypt only fields matching this case-insensitive regex (partial encryption)")
+
 	rootCmd.AddCommand(encryptCmd)
 }

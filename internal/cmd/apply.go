@@ -34,6 +34,8 @@ func determineGitRequirement(requireClean, noRequireClean, force bool) GitRequir
 	}
 }
 
+var applySafeCmd *SafeCommand
+
 var applyCmd = &cobra.Command{
 	Use:   "apply",
 	Short: "Apply planned changes to SOPS files",
@@ -41,12 +43,13 @@ var applyCmd = &cobra.Command{
 - Verify git working tree is clean (unless --force is used)
 - Apply all changes in a single transaction
 - Rollback on first failure to maintain consistency`,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		sopsPath, _ := cmd.Flags().GetString("sops-path")                   //nolint:errcheck // Flag is defined, error impossible
-		requireCleanGit, _ := cmd.Flags().GetBool("require-clean-git")      //nolint:errcheck // Flag is defined, error impossible
-		noRequireCleanGit, _ := cmd.Flags().GetBool("no-require-clean-git") //nolint:errcheck // Flag is defined, error impossible
-		force, _ := cmd.Flags().GetBool("force")                            //nolint:errcheck // Flag is defined, error impossible
-		yes, _ := cmd.Flags().GetBool("yes")                                //nolint:errcheck // Flag is defined, error impossible
+	RunE: func(_ *cobra.Command, _ []string) error {
+		// Guaranteed safe flag access - no errors possible
+		sopsPath := applySafeCmd.GetStringFlag("sops-path")
+		requireCleanGit := applySafeCmd.GetBoolFlag("require-clean-git")
+		noRequireCleanGit := applySafeCmd.GetBoolFlag("no-require-clean-git")
+		force := applySafeCmd.GetBoolFlag("force")
+		yes := applySafeCmd.GetBoolFlag("yes")
 
 		gitRequirement := determineGitRequirement(requireCleanGit, noRequireCleanGit, force)
 
@@ -56,6 +59,10 @@ var applyCmd = &cobra.Command{
 }
 
 func init() {
-	applyCmd.Flags().Bool("force", false, "skip git clean check")
+	// Create SafeCommand and register local flags (persistent flags from root are handled automatically)
+	applySafeCmd = NewSafeCommand(applyCmd)
+	applySafeCmd.RegisterBoolFlag("no-require-clean-git", false, "skip git clean check")
+	applySafeCmd.RegisterBoolFlag("force", false, "skip git clean check")
+
 	rootCmd.AddCommand(applyCmd)
 }

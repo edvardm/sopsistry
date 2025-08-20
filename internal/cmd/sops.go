@@ -5,6 +5,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var sopsSafeCmd *SafeCommand
+
 var sopsCmd = &cobra.Command{
 	Use:   "sops-cmd [sops-args...]",
 	Short: "Show the SOPS command with team environment variables",
@@ -17,9 +19,9 @@ Examples:
   sistry sops-cmd -d secrets.yaml              # Show decrypt command
 
 You can copy and run the displayed command directly.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		sopsPath, _ := cmd.Flags().GetString("sops-path") //nolint:errcheck // Flag is defined, error impossible
-		execute, _ := cmd.Flags().GetBool("exec")         //nolint:errcheck // Flag is defined, error impossible
+	RunE: func(_ *cobra.Command, args []string) error {
+		sopsPath := sopsSafeCmd.GetStringFlag("sops-path")
+		execute := sopsSafeCmd.GetBoolFlag("exec")
 
 		service := core.NewSopsManager(sopsPath)
 		if execute {
@@ -30,6 +32,8 @@ You can copy and run the displayed command directly.`,
 }
 
 func init() {
-	sopsCmd.Flags().Bool("exec", false, "execute the SOPS command instead of just showing it")
+	sopsSafeCmd = NewSafeCommand(sopsCmd)
+	sopsSafeCmd.RegisterBoolFlag("exec", false, "execute the SOPS command instead of just showing it")
+
 	rootCmd.AddCommand(sopsCmd)
 }

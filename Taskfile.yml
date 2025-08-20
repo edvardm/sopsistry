@@ -85,7 +85,7 @@ tasks:
       - .golangci.yml
     cmds:
       - go vet ./...
-      - golangci-lint run --timeout=10s
+      - golangci-lint run --fix --timeout=10s
 
   gocognit:
     desc: Run cognitive complexity checker

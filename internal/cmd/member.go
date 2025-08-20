@@ -7,6 +7,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var addMemberSafeCmd *SafeCommand
+var removeMemberSafeCmd *SafeCommand
+
 var addMemberCmd = &cobra.Command{
 	Use:     "add-member <id>",
 	Aliases: []string{"add"},
@@ -15,15 +18,15 @@ var addMemberCmd = &cobra.Command{
 This command updates the team configuration but does not immediately
 re-encrypt files. Use 'st plan' and 'st apply' to see and execute changes.`,
 	Args: cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		memberID := args[0]
-		ageKey, _ := cmd.Flags().GetString("key") //nolint:errcheck // Flag is defined, error impossible
+		ageKey := addMemberSafeCmd.GetStringFlag("key")
 
 		if ageKey == "" {
 			return fmt.Errorf("--key flag is required")
 		}
 
-		sopsPath, _ := cmd.Flags().GetString("sops-path") //nolint:errcheck // Flag is defined, error impossible
+		sopsPath := addMemberSafeCmd.GetStringFlag("sops-path")
 		service := core.NewSopsManager(sopsPath)
 		return service.AddMember(memberID, ageKey)
 	},
@@ -37,18 +40,21 @@ var removeMemberCmd = &cobra.Command{
 This command updates the team configuration but does not immediately
 re-encrypt files. Use 'st plan' and 'st apply' to see and execute changes.`,
 	Args: cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		memberID := args[0]
 
-		sopsPath, _ := cmd.Flags().GetString("sops-path") //nolint:errcheck // Flag is defined, error impossible
+		sopsPath := removeMemberSafeCmd.GetStringFlag("sops-path")
 		service := core.NewSopsManager(sopsPath)
 		return service.RemoveMember(memberID)
 	},
 }
 
 func init() {
-	addMemberCmd.Flags().String("key", "", "age public key for the member (required)")
+	addMemberSafeCmd = NewSafeCommand(addMemberCmd)
+	addMemberSafeCmd.RegisterStringFlag("key", "", "age public key for the member (required)")
 	_ = addMemberCmd.MarkFlagRequired("key") // Error is not critical for flag setup
+
+	removeMemberSafeCmd = NewSafeCommand(removeMemberCmd)
 
 	rootCmd.AddCommand(addMemberCmd)
 	rootCmd.AddCommand(removeMemberCmd)

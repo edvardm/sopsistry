@@ -5,6 +5,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var rotateSafeCmd *SafeCommand
+
 var rotateKeyCmd = &cobra.Command{
 	Use:     "rotate-key",
 	Aliases: []string{"rot"},
@@ -18,9 +20,9 @@ This command will:
 - Backup and restore on failure
 
 Use --force to skip age validation and rotate immediately.`,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		sopsPath, _ := cmd.Flags().GetString("sops-path") //nolint:errcheck // Flag is defined, error impossible
-		force, _ := cmd.Flags().GetBool("force")          //nolint:errcheck // Flag is defined, error impossible
+	RunE: func(_ *cobra.Command, _ []string) error {
+		sopsPath := rotateSafeCmd.GetStringFlag("sops-path")
+		force := rotateSafeCmd.GetBoolFlag("force")
 
 		service := core.NewSopsManager(sopsPath)
 		return service.RotateKey(force)
@@ -28,6 +30,8 @@ Use --force to skip age validation and rotate immediately.`,
 }
 
 func init() {
-	rotateKeyCmd.Flags().BoolP("force", "f", false, "force rotation even if key is not expired")
+	rotateSafeCmd = NewSafeCommand(rotateKeyCmd)
+	rotateSafeCmd.RegisterBoolFlag("force", false, "force rotation even if key is not expired")
+
 	rootCmd.AddCommand(rotateKeyCmd)
 }

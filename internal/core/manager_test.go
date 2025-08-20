@@ -22,7 +22,7 @@ func TestSopsManager_CheckInitialization(t *testing.T) {
 	requireNoError(t, err, "checkInitialization(false) on fresh directory should succeed")
 
 	// Given: a config file already exists
-	if writeErr := os.WriteFile(service.configPath, []byte("test"), 0o644); writeErr != nil { //nolint:gosec // Test file with dummy content
+	if writeErr := os.WriteFile(service.configPath, []byte("test"), 0o644); writeErr != nil {
 		t.Fatalf("failed to create test config file: %v", writeErr)
 	}
 

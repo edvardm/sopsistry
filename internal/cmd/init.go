@@ -5,6 +5,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var initSafeCmd *SafeCommand
+
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize SOPS team configuration",
@@ -17,9 +19,9 @@ This command will:
 
 Use --force to overwrite existing configuration files. The .secrets directory and 
 any existing age keys will be preserved.`,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		sopsPath, _ := cmd.Flags().GetString("sops-path") //nolint:errcheck // Flag is defined, error impossible
-		force, _ := cmd.Flags().GetBool("force")          //nolint:errcheck // Flag is defined, error impossible
+	RunE: func(_ *cobra.Command, _ []string) error {
+		sopsPath := initSafeCmd.GetStringFlag("sops-path")
+		force := initSafeCmd.GetBoolFlag("force")
 
 		service := core.NewSopsManager(sopsPath)
 		return service.Init(force)
@@ -27,6 +29,8 @@ any existing age keys will be preserved.`,
 }
 
 func init() {
-	initCmd.Flags().BoolP("force", "f", false, "overwrite existing files (preserves .secrets directory)")
+	initSafeCmd = NewSafeCommand(initCmd)
+	initSafeCmd.RegisterBoolFlag("force", false, "overwrite existing files (preserves .secrets directory)")
+
 	rootCmd.AddCommand(initCmd)
 }

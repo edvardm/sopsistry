@@ -190,7 +190,7 @@ func (p *Plan) getActionPrefix(actionType ActionType, noColor bool) string { //n
 	return display.ColoredFormat()
 }
 
-func (p *Plan) displayAction(action *Action, prefix string) { //nolint:gocritic // Passing by pointer for performance
+func (p *Plan) displayAction(action *Action, prefix string) {
 	fmt.Printf("%s %s (%s): %s\n",
 		prefix, action.File, action.Scope, action.Description)
 

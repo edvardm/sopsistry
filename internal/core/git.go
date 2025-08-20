@@ -74,7 +74,7 @@ func (s *SopsManager) addSecretsToGitignore(gitignorePath string, lines []string
 	updatedLines := s.appendSecretsEntry(lines)
 	content := strings.Join(updatedLines, "\n") + "\n"
 
-	if err := os.WriteFile(gitignorePath, []byte(content), GitignoreFileMode); err != nil { //nolint:gosec // .gitignore uses standard permissions
+	if err := os.WriteFile(gitignorePath, []byte(content), GitignoreFileMode); err != nil {
 		return fmt.Errorf("failed to update .gitignore: %w", err)
 	}
 

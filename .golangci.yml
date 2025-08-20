@@ -44,6 +44,7 @@ linters:
     - bidichk       # Check for dangerous Unicode sequences
     - durationcheck # Check duration multiplications
     - errname       # Check error naming conventions
+    - nolintlint    # Check nolint directive usage
 
 linters-settings:
   errcheck:
@@ -117,6 +118,12 @@ linters-settings:
       
   dupl:
     threshold: 100
+    
+  nolintlint:
+    require-explanation: true    # Require explanation after nolint directive
+    require-specific: true       # Require specific linter names, not just //nolint
+    allow-no-explanation: []     # Empty list - all directives need explanations
+    allow-unused: false          # Don't allow unused nolint directives
     
   gofumpt:
     extra-rules: true     # Enable extra formatting rules
