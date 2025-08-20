@@ -101,13 +101,13 @@ func TestKeyRotation_ExpiredKey(t *testing.T) {
 		},
 	}
 
-	if err := manifest.Save(configPath); err != nil {
-		t.Fatalf("Failed to save manifest: %v", err)
+	if saveErr := manifest.Save(configPath); saveErr != nil {
+		t.Fatalf("Failed to save manifest: %v", saveErr)
 	}
 
 	// Create secrets directory
-	if err := os.MkdirAll(secretsDir, 0o700); err != nil {
-		t.Fatalf("Failed to create secrets dir: %v", err)
+	if mkdirErr := os.MkdirAll(secretsDir, 0o700); mkdirErr != nil {
+		t.Fatalf("Failed to create secrets dir: %v", mkdirErr)
 	}
 
 	var output bytes.Buffer

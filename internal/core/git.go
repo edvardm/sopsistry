@@ -22,7 +22,7 @@ func (s *SopsManager) checkGitClean() error {
 		return fmt.Errorf("failed to check git status: %w", err)
 	}
 
-	if len(strings.TrimSpace(string(output))) > 0 {
+	if strings.TrimSpace(string(output)) != EmptyString {
 		return fmt.Errorf("git working tree is not clean. Commit or stash changes first, or use --force")
 	}
 
@@ -50,7 +50,7 @@ func (s *SopsManager) readGitignoreLines(gitignorePath string) ([]string, bool) 
 	if err != nil {
 		return lines, secretsIgnored
 	}
-	defer func() { _ = file.Close() }()
+	defer func() { _ = file.Close() }() //nolint:errcheck // File cleanup, error not critical
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -74,7 +74,7 @@ func (s *SopsManager) addSecretsToGitignore(gitignorePath string, lines []string
 	updatedLines := s.appendSecretsEntry(lines)
 	content := strings.Join(updatedLines, "\n") + "\n"
 
-	if err := os.WriteFile(gitignorePath, []byte(content), 0o644); err != nil { //nolint:gosec // .gitignore uses standard permissions
+	if err := os.WriteFile(gitignorePath, []byte(content), GitignoreFileMode); err != nil { //nolint:gosec // .gitignore uses standard permissions
 		return fmt.Errorf("failed to update .gitignore: %w", err)
 	}
 
@@ -83,10 +83,9 @@ func (s *SopsManager) addSecretsToGitignore(gitignorePath string, lines []string
 }
 
 func (s *SopsManager) appendSecretsEntry(lines []string) []string {
-	if len(lines) > 0 && lines[len(lines)-1] != "" {
-		lines = append(lines, "")
+	if len(lines) > 0 && lines[len(lines)-1] != EmptyString {
+		lines = append(lines, EmptyString)
 	}
-	lines = append(lines, "# SOPS team private keys")
-	lines = append(lines, ".secrets")
+	lines = append(lines, "# SOPS team private keys", ".secrets")
 	return lines
 }

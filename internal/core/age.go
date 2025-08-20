@@ -9,14 +9,14 @@ import (
 )
 
 func (s *SopsManager) generateAgeKey(keyPath string) (string, error) {
-	if err := ensureBinaryAvailable("age-keygen", "Please install age: https://github.com/FiloSottile/age"); err != nil {
+	if err := ensureBinaryAvailable(AgeKeygenBinary, "Please install age: https://github.com/FiloSottile/age"); err != nil {
 		return "", err
 	}
 
-	cmd := exec.Command("age-keygen")
+	cmd := exec.Command(AgeKeygenBinary)
 	output, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to generate age key: %w", err)
+		return EmptyString, fmt.Errorf("failed to generate age key: %w", err)
 	}
 
 	lines := strings.Split(string(output), "\n")
@@ -32,12 +32,12 @@ func (s *SopsManager) generateAgeKey(keyPath string) (string, error) {
 		}
 	}
 
-	if privateKey == "" || publicKey == "" {
-		return "", fmt.Errorf("failed to parse age-keygen output")
+	if privateKey == EmptyString || publicKey == EmptyString {
+		return EmptyString, fmt.Errorf("failed to parse age-keygen output")
 	}
 
-	if err := os.WriteFile(keyPath, []byte(privateKey+"\n"), 0o600); err != nil {
-		return "", fmt.Errorf("failed to write private key: %w", err)
+	if err := os.WriteFile(keyPath, []byte(privateKey+"\n"), PrivateKeyFileMode); err != nil {
+		return EmptyString, fmt.Errorf("failed to write private key: %w", err)
 	}
 
 	fmt.Printf("Generated age key pair:\n")
@@ -48,19 +48,19 @@ func (s *SopsManager) generateAgeKey(keyPath string) (string, error) {
 }
 
 func (s *SopsManager) getPublicKeyFromPrivateKey(keyPath string) (string, error) {
-	if err := ensureBinaryAvailable("age-keygen", "Please install age: https://github.com/FiloSottile/age"); err != nil {
+	if err := ensureBinaryAvailable(AgeKeygenBinary, "Please install age: https://github.com/FiloSottile/age"); err != nil {
 		return "", err
 	}
 
-	cmd := exec.Command("age-keygen", "-y", keyPath)
+	cmd := exec.Command(AgeKeygenBinary, "-y", keyPath)
 	output, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to extract public key from %s: %w", keyPath, err)
+		return EmptyString, fmt.Errorf("failed to extract public key from %s: %w", keyPath, err)
 	}
 
 	publicKey := strings.TrimSpace(string(output))
-	if publicKey == "" {
-		return "", fmt.Errorf("failed to extract public key from %s", keyPath)
+	if publicKey == EmptyString {
+		return EmptyString, fmt.Errorf("failed to extract public key from %s", keyPath)
 	}
 
 	return publicKey, nil

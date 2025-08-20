@@ -14,8 +14,8 @@ based on the current team configuration. This is a dry-run that shows:
 - What recipients will be added or removed
 - Any validation errors or warnings`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		sopsPath, _ := cmd.Flags().GetString("sops-path")
-		noColor, _ := cmd.Flags().GetBool("no-color")
+		sopsPath, _ := cmd.Flags().GetString("sops-path") //nolint:errcheck // Flag is defined, error impossible
+		noColor, _ := cmd.Flags().GetBool("no-color")     //nolint:errcheck // Flag is defined, error impossible
 
 		service := core.NewSopsManager(sopsPath)
 		return service.Plan(noColor)

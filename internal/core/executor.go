@@ -15,7 +15,7 @@ type Executor struct {
 
 // NewExecutor creates a new executor instance
 func NewExecutor(sopsPath string) *Executor {
-	if sopsPath == "" {
+	if sopsPath == EmptyString {
 		sopsPath = "sops"
 	}
 	cleanPath := filepath.Clean(sopsPath)
@@ -35,14 +35,14 @@ func (e *Executor) Execute(plan *Plan) error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = os.RemoveAll(backupDir) }()
+	defer func() { _ = os.RemoveAll(backupDir) }() //nolint:errcheck // Cleanup operation, error not critical
 
 	return e.executeActionsWithRollback(plan, backupDir)
 }
 
 func (e *Executor) setupBackupDirectory() (string, error) {
 	backupDir := ".sopsistry-backup"
-	if err := os.MkdirAll(backupDir, 0o700); err != nil {
+	if err := os.MkdirAll(backupDir, BackupDirMode); err != nil {
 		return "", fmt.Errorf("failed to create backup directory: %w", err)
 	}
 	return backupDir, nil
@@ -60,8 +60,8 @@ func (e *Executor) executeActionsWithRollback(plan *Plan, backupDir string) erro
 			return err
 		}
 
-		if err := e.executeAction(action); err != nil {
-			return e.handleExecutionError(action, err, plan.Actions[:executedActions+1], backupDir)
+		if err := e.executeAction(&action); err != nil {
+			return e.handleExecutionError(&action, err, plan.Actions[:executedActions+1], backupDir)
 		}
 
 		executedActions++
@@ -82,7 +82,7 @@ func (e *Executor) backupFileIfExists(filePath, backupDir string, index int) err
 	return nil
 }
 
-func (e *Executor) handleExecutionError(action Action, actionErr error, executedActions []Action, backupDir string) error {
+func (e *Executor) handleExecutionError(action *Action, actionErr error, executedActions []Action, backupDir string) error {
 	fmt.Printf("Error executing action for %s: %v\n", action.File, actionErr)
 	fmt.Println("Rolling back changes...")
 
@@ -94,7 +94,7 @@ func (e *Executor) handleExecutionError(action Action, actionErr error, executed
 }
 
 // executeAction performs a single SOPS operation
-func (e *Executor) executeAction(action Action) error {
+func (e *Executor) executeAction(action *Action) error {
 	switch action.Type {
 	case ActionEncrypt:
 		return e.encryptFile(action.File, action.Recipients)
@@ -177,5 +177,5 @@ func (e *Executor) copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(cleanDst, data, 0o600)
+	return os.WriteFile(cleanDst, data, PrivateKeyFileMode)
 }

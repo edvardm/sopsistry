@@ -14,8 +14,8 @@ var checkCmd = &cobra.Command{
 This command helps identify potential conflicts between existing .sops.yaml
 files and team-managed encryption settings, and warns about expired or expiring keys.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		sopsPath, _ := cmd.Flags().GetString("sops-path")
-		verbose, _ := cmd.Flags().GetBool("verbose")
+		sopsPath, _ := cmd.Flags().GetString("sops-path") //nolint:errcheck // Flag is defined, error impossible
+		verbose, _ := cmd.Flags().GetBool("verbose")      //nolint:errcheck // Flag is defined, error impossible
 
 		// Check SOPS configuration compatibility
 		detector := core.NewSOPSDetector()

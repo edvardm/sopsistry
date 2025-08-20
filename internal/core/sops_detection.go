@@ -48,8 +48,8 @@ func (d *SOPSDetector) DetectSOPSConfig() (*SOPSConfigInfo, error) {
 // SOPSConfigInfo contains information about existing SOPS configuration
 type SOPSConfigInfo struct {
 	ConfigPath       string
-	Exists           bool
 	Content          string
+	Exists           bool
 	HasCreationRules bool
 	HasAgeKeys       bool
 	HasKMSKeys       bool
@@ -80,11 +80,7 @@ func (info *SOPSConfigInfo) GetWarningMessage() string {
 		warnings = append(warnings, "   • Contains PGP keys (consider using sops directly for these files)")
 	}
 
-	warnings = append(warnings, "")
-	warnings = append(warnings, "💡 Options:")
-	warnings = append(warnings, "   • Use 'sops' directly for files managed by .sops.yaml")
-	warnings = append(warnings, "   • Remove/rename .sops.yaml for full team management")
-	warnings = append(warnings, "   • Continue anyway (team settings will be used)")
+	warnings = append(warnings, EmptyString, "💡 Options:", "   • Use 'sops' directly for files managed by .sops.yaml", "   • Remove/rename .sops.yaml for full team management", "   • Continue anyway (team settings will be used)") //nolint:gocritic // Single append is more readable here
 
 	return strings.Join(warnings, "\n")
 }

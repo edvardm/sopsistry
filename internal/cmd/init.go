@@ -18,8 +18,8 @@ This command will:
 Use --force to overwrite existing configuration files. The .secrets directory and 
 any existing age keys will be preserved.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		sopsPath, _ := cmd.Flags().GetString("sops-path")
-		force, _ := cmd.Flags().GetBool("force")
+		sopsPath, _ := cmd.Flags().GetString("sops-path") //nolint:errcheck // Flag is defined, error impossible
+		force, _ := cmd.Flags().GetBool("force")          //nolint:errcheck // Flag is defined, error impossible
 
 		service := core.NewSopsManager(sopsPath)
 		return service.Init(force)

@@ -38,7 +38,7 @@ tasks:
     cmds:
       - task: install-tool
         vars: 
-          TOOL_PKG: github.com/golangci/golangci-lint/cmd/golangci-lint@v1.62.0
+          TOOL_PKG: github.com/golangci/golangci-lint/cmd/golangci-lint@latest
           TOOL_NAME: golangci-lint
       - task: install-tool
         vars:

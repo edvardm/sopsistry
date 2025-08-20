@@ -23,7 +23,7 @@ type Encryptor struct {
 
 // NewEncryptor creates a new encryptor instance with the given SOPS binary path
 func NewEncryptor(sopsPath string) *Encryptor {
-	if sopsPath == "" {
+	if sopsPath == EmptyString {
 		sopsPath = DefaultSOPSBinary
 	}
 	cleanPath := filepath.Clean(sopsPath)
@@ -97,21 +97,21 @@ func (e *Encryptor) buildEncryptCommand(filePath string, ageKeys []string, inPla
 	return cmd, nil
 }
 
-func (e *Encryptor) buildSOPSArgs(filePath string, inPlace bool, regex string) []string {
+func (e *Encryptor) buildSOPSArgs(filePath string, inPlace bool, regex string) []string { //nolint:revive // inPlace is a legitimate CLI flag parameter
 	args := []string{"-e"}
 	if inPlace {
 		args = append(args, "--in-place")
 	}
-	if regex != "" {
+	if regex != EmptyString {
 		args = append(args, "--encrypted-regex", regex)
 	}
 	args = append(args, filePath)
 	return args
 }
 
-func (e *Encryptor) displayEncryptionResult(filePath string, inPlace bool, regex string, output []byte) {
+func (e *Encryptor) displayEncryptionResult(filePath string, inPlace bool, regex string, output []byte) { //nolint:revive // inPlace is a legitimate CLI flag parameter
 	if inPlace {
-		if regex != "" {
+		if regex != EmptyString {
 			fmt.Printf("🔒 Encrypted %s (partial: %s)\n", filePath, regex)
 		} else {
 			fmt.Printf("🔒 Encrypted %s (full file)\n", filePath)
@@ -129,7 +129,7 @@ type Decryptor struct {
 // NewDecryptor creates a new decryptor instance
 func NewDecryptor(sopsPath string) *Decryptor {
 	// Validate and clean the sops path for security
-	if sopsPath == "" {
+	if sopsPath == EmptyString {
 		sopsPath = DefaultSOPSBinary
 	}
 	// Clean the path to prevent injection
@@ -140,7 +140,7 @@ func NewDecryptor(sopsPath string) *Decryptor {
 }
 
 // DecryptFile decrypts a SOPS-encrypted file
-func (d *Decryptor) DecryptFile(filePath string, keyPath string, inPlace bool) error {
+func (d *Decryptor) DecryptFile(filePath, keyPath string, inPlace bool) error { //nolint:revive // inPlace is a legitimate CLI flag parameter
 	// Check if file exists
 	if _, err := os.Stat(filePath); err != nil {
 		return fmt.Errorf("file %s does not exist: %w", filePath, err)

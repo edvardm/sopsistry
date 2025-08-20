@@ -22,8 +22,8 @@ func TestSopsManager_CheckInitialization(t *testing.T) {
 	requireNoError(t, err, "checkInitialization(false) on fresh directory should succeed")
 
 	// Given: a config file already exists
-	if err := os.WriteFile(service.configPath, []byte("test"), 0o644); err != nil { //nolint:gosec // Test file with dummy content
-		t.Fatalf("failed to create test config file: %v", err)
+	if writeErr := os.WriteFile(service.configPath, []byte("test"), 0o644); writeErr != nil { //nolint:gosec // Test file with dummy content
+		t.Fatalf("failed to create test config file: %v", writeErr)
 	}
 
 	// When: checking initialization with existing file
@@ -247,7 +247,7 @@ func TestSopsManager_RemoveMember(t *testing.T) {
 func TestNewSopsManager(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet // Test struct field alignment not critical
 		name     string
 		sopsPath string
 		want     *SopsManager

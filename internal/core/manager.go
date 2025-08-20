@@ -12,7 +12,7 @@ import (
 )
 
 // SopsManager handles all SOPS team management operations
-type SopsManager struct {
+type SopsManager struct { //nolint:govet // Field alignment optimization not critical for this struct
 	sopsPath   string
 	configPath string
 	secretsDir string
@@ -62,7 +62,7 @@ func (s *SopsManager) Init(force bool) error {
 	return nil
 }
 
-func (s *SopsManager) checkInitialization(force bool) error {
+func (s *SopsManager) checkInitialization(force bool) error { //nolint:revive // force is a legitimate CLI flag parameter
 	// Check file existence (can be overridden by --force)
 	if !force {
 		if _, err := os.Stat(s.configPath); err == nil {
@@ -91,7 +91,7 @@ func (s *SopsManager) setupEnvironment() (bool, error) {
 		secretsDirExisted = true
 	}
 
-	if err := os.MkdirAll(s.secretsDir, 0o700); err != nil {
+	if err := os.MkdirAll(s.secretsDir, BackupDirMode); err != nil {
 		return false, fmt.Errorf("failed to create .secrets directory: %w", err)
 	}
 
@@ -109,7 +109,7 @@ func (s *SopsManager) setupAgeKey() (string, error) {
 		return "", err
 	}
 
-	if existingKey != "" {
+	if existingKey != EmptyString {
 		_, _ = fmt.Fprintf(s.output, "Using existing age key at %s\n", existingKey)
 		return publicKey, nil
 	}
@@ -119,25 +119,26 @@ func (s *SopsManager) setupAgeKey() (string, error) {
 }
 
 // findExistingKey looks for any existing key file and returns path + public key
-func (s *SopsManager) findExistingKey() (string, string, error) {
+func (s *SopsManager) findExistingKey() (keyPath, publicKey string, err error) {
 	pattern := filepath.Join(s.secretsDir, "key-*.txt")
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to search for existing keys: %w", err)
+		err = fmt.Errorf("failed to search for existing keys: %w", err)
+		return
 	}
 
 	if len(matches) == 0 {
-		return "", "", nil // No existing keys
+		return // No existing keys
 	}
 
 	// Use first key found (in practice should be only one for current user)
-	keyPath := matches[0]
-	publicKey, err := s.getPublicKeyFromPrivateKey(keyPath)
+	keyPath = matches[0]
+	publicKey, err = s.getPublicKeyFromPrivateKey(keyPath)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to extract public key from %s: %w", keyPath, err)
+		err = fmt.Errorf("failed to extract public key from %s: %w", keyPath, err)
+		return
 	}
-
-	return keyPath, publicKey, nil
+	return
 }
 
 // findKeyForPublicKey searches for the private key file that corresponds to the given public key
@@ -159,7 +160,7 @@ func (s *SopsManager) findKeyForPublicKey(targetPublicKey string) (string, error
 		}
 	}
 
-	return "", fmt.Errorf("no private key found for public key %s", targetPublicKey)
+	return EmptyString, fmt.Errorf("no private key found for public key %s", targetPublicKey)
 }
 
 // generateNewAgeKey creates a new age key with private-key-based naming
@@ -168,20 +169,20 @@ func (s *SopsManager) generateNewAgeKey() (string, error) {
 	tempKeyPath := filepath.Join(s.secretsDir, "temp-key.txt")
 	publicKey, err := s.generateAgeKey(tempKeyPath)
 	if err != nil {
-		return "", err
+		return EmptyString, err
 	}
 
 	// Read private key content for hashing
 	privateKeyContent, err := os.ReadFile(tempKeyPath) //nolint:gosec // Reading temporary key file we just created
 	if err != nil {
-		_ = os.Remove(tempKeyPath)
+		_ = os.Remove(tempKeyPath) //nolint:errcheck // Cleanup on error path, failure not critical
 		return "", fmt.Errorf("failed to read generated private key: %w", err)
 	}
 
 	// Move to private-key-based name
 	finalKeyPath := s.keyPathForPrivateKey(string(privateKeyContent))
 	if err := os.Rename(tempKeyPath, finalKeyPath); err != nil {
-		_ = os.Remove(tempKeyPath) // Cleanup temp file
+		_ = os.Remove(tempKeyPath) //nolint:errcheck // Cleanup temp file on error, failure not critical
 		return "", fmt.Errorf("failed to rename key file: %w", err)
 	}
 
@@ -190,7 +191,7 @@ func (s *SopsManager) generateNewAgeKey() (string, error) {
 
 func (s *SopsManager) getCurrentMemberID() (string, error) {
 	// Check for override env var first
-	if envUserID := os.Getenv("SOPSISTRY_USER_ID"); envUserID != "" {
+	if envUserID := os.Getenv("SOPSISTRY_USER_ID"); envUserID != EmptyString {
 		return envUserID, nil
 	}
 
@@ -201,7 +202,7 @@ func (s *SopsManager) getCurrentMemberID() (string, error) {
 	}
 
 	memberID := currentUser.Username
-	if memberID == "" {
+	if memberID == EmptyString {
 		memberID = "me"
 	}
 	return memberID, nil
@@ -225,12 +226,12 @@ func (s *SopsManager) createInitialManifest(memberID, publicKey string, created 
 		},
 		Settings: Settings{
 			SopsVersion:   "3.8.0",
-			MaxKeyAgeDays: 180, // default 6 months
+			MaxKeyAgeDays: DefaultMaxKeyAgeDays, // default 6 months
 		},
 	}
 }
 
-func (s *SopsManager) printInitializationSuccess(force bool, memberID, publicKey string, secretsDirExisted bool) {
+func (s *SopsManager) printInitializationSuccess(force bool, memberID, publicKey string, secretsDirExisted bool) { //nolint:revive // force is a legitimate CLI flag parameter
 	if force {
 		_, _ = fmt.Fprintf(s.output, "Re-initialized SOPS team configuration (force mode)\n")
 	} else {
@@ -271,7 +272,7 @@ func (s *SopsManager) printNextSteps() {
 func (s *SopsManager) Plan(noColor bool) error {
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
-		return fmt.Errorf("failed to load manifest: %w", err)
+		return fmt.Errorf(FailedToLoadManifestMsg, err)
 	}
 
 	planner := NewPlanner(s.sopsPath)
@@ -285,7 +286,7 @@ func (s *SopsManager) Plan(noColor bool) error {
 }
 
 // Apply executes planned changes
-func (s *SopsManager) Apply(requireCleanGit, skipConfirmation bool) error {
+func (s *SopsManager) Apply(requireCleanGit, skipConfirmation bool) error { //nolint:revive // CLI flag parameters are legitimate
 	if requireCleanGit {
 		if err := s.checkGitClean(); err != nil {
 			return err
@@ -294,7 +295,7 @@ func (s *SopsManager) Apply(requireCleanGit, skipConfirmation bool) error {
 
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
-		return fmt.Errorf("failed to load manifest: %w", err)
+		return fmt.Errorf(FailedToLoadManifestMsg, err)
 	}
 
 	planner := NewPlanner(s.sopsPath)
@@ -327,7 +328,7 @@ func (s *SopsManager) Apply(requireCleanGit, skipConfirmation bool) error {
 func (s *SopsManager) AddMember(id, ageKey string) error {
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
-		return fmt.Errorf("failed to load manifest: %w", err)
+		return fmt.Errorf(FailedToLoadManifestMsg, err)
 	}
 
 	// Extract member IDs for efficient lookup
@@ -365,7 +366,7 @@ func (s *SopsManager) AddMember(id, ageKey string) error {
 func (s *SopsManager) RemoveMember(id string) error {
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
-		return fmt.Errorf("failed to load manifest: %w", err)
+		return fmt.Errorf(FailedToLoadManifestMsg, err)
 	}
 
 	if err := s.removeMemberFromManifest(manifest, id); err != nil {
@@ -413,10 +414,10 @@ func (s *SopsManager) printRemovalSuccess(id string) {
 }
 
 // List displays current team configuration
-func (s *SopsManager) List(jsonOutput bool) error {
+func (s *SopsManager) List(jsonOutput bool) error { //nolint:revive // jsonOutput is a legitimate CLI flag parameter
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
-		return fmt.Errorf("failed to load manifest: %w", err)
+		return fmt.Errorf(FailedToLoadManifestMsg, err)
 	}
 
 	if jsonOutput {
@@ -431,7 +432,7 @@ func (s *SopsManager) List(jsonOutput bool) error {
 func (s *SopsManager) EncryptFile(filePath string, inPlace bool, regex string) error {
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
-		return fmt.Errorf("failed to load manifest: %w", err)
+		return fmt.Errorf(FailedToLoadManifestMsg, err)
 	}
 
 	var ageKeys []string //nolint:prealloc // Small team sizes, optimization not worth it
@@ -454,7 +455,7 @@ func (s *SopsManager) DecryptFile(filePath string, inPlace bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to find decryption key: %w", err)
 	}
-	if keyPath == "" {
+	if keyPath == EmptyString {
 		return fmt.Errorf("no private key found in %s", s.secretsDir)
 	}
 
@@ -463,10 +464,20 @@ func (s *SopsManager) DecryptFile(filePath string, inPlace bool) error {
 }
 
 // ShowSOPSCommand displays the SOPS command with proper environment variables
-func (s *SopsManager) ShowSOPSCommand(args []string, execute bool) error {
+func (s *SopsManager) ShowSOPSCommand(args []string) error {
+	return s.handleSOPSCommand(args, false)
+}
+
+// ExecuteSOPSCommand executes the SOPS command with proper environment variables
+func (s *SopsManager) ExecuteSOPSCommand(args []string) error {
+	return s.handleSOPSCommand(args, true)
+}
+
+// handleSOPSCommand contains the common logic for SOPS command operations
+func (s *SopsManager) handleSOPSCommand(args []string, execute bool) error { //nolint:revive // execute is internal implementation detail
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
-		return fmt.Errorf("failed to load manifest: %w", err)
+		return fmt.Errorf(FailedToLoadManifestMsg, err)
 	}
 
 	var ageKeys []string //nolint:prealloc // Small team sizes, optimization not worth it
@@ -478,8 +489,11 @@ func (s *SopsManager) ShowSOPSCommand(args []string, execute bool) error {
 		return fmt.Errorf("no team members found in configuration")
 	}
 
-	er := NewSOPSHelper(s.sopsPath, s.secretsDir)
-	return er.ShowCommand(args, ageKeys, execute)
+	helper := NewSOPSHelper(s.sopsPath, s.secretsDir)
+	if execute {
+		return helper.ExecuteCommand(args, ageKeys)
+	}
+	return helper.ShowCommand(args, ageKeys)
 }
 
 // RotateKey rotates the current user's age key
@@ -499,15 +513,15 @@ func (s *SopsManager) RotateKey(force bool) error {
 	if err := s.backupCurrentKey(keyPath, backupPath); err != nil {
 		return err
 	}
-	defer func() { _ = os.Remove(backupPath) }()
+	defer func() { _ = os.Remove(backupPath) }() //nolint:errcheck // Cleanup backup file, error not critical
 
 	return s.executeKeyRotation(manifest, currentMember, keyPath, backupPath)
 }
 
-func (s *SopsManager) prepareKeyRotation(force bool) (*Manifest, *Member, error) {
+func (s *SopsManager) prepareKeyRotation(force bool) (*Manifest, *Member, error) { //nolint:revive // force is a legitimate CLI flag parameter
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load manifest: %w", err)
+		return nil, nil, fmt.Errorf(FailedToLoadManifestMsg, err)
 	}
 
 	currentUser, err := s.getCurrentMemberID()
@@ -599,7 +613,7 @@ func (s *SopsManager) backupCurrentKey(keyPath, backupPath string) error {
 		if err != nil {
 			return fmt.Errorf("failed to read current key: %w", err)
 		}
-		if err := os.WriteFile(backupPath, data, 0o600); err != nil {
+		if err := os.WriteFile(backupPath, data, PrivateKeyFileMode); err != nil {
 			return fmt.Errorf("failed to backup key: %w", err)
 		}
 	}
@@ -610,17 +624,17 @@ func (s *SopsManager) handleRotationError(msg string, err error, keyPath, backup
 	// Restore backup
 	if _, backupErr := os.Stat(backupPath); backupErr == nil {
 		if data, readErr := os.ReadFile(backupPath); readErr == nil { //nolint:gosec // Path validated during backup creation
-			_ = os.WriteFile(keyPath, data, 0o600)
+			_ = os.WriteFile(keyPath, data, PrivateKeyFileMode) //nolint:errcheck // Best effort backup restore, error not critical
 		}
 	}
 	return fmt.Errorf("%s: %w", msg, err)
 }
 
 func (s *SopsManager) checkKeyExpiry(member *Member, maxAgeDays int) error {
-	maxAgeDays = max(maxAgeDays, 180) // ensure minimum of 180 days (6 months)
+	maxAgeDays = max(maxAgeDays, DefaultMaxKeyAgeDays) // ensure minimum of 180 days (6 months)
 
 	age := time.Since(member.Created)
-	maxAge := time.Duration(maxAgeDays) * 24 * time.Hour
+	maxAge := time.Duration(maxAgeDays) * HoursPerDay * time.Hour
 
 	if age > maxAge {
 		return fmt.Errorf("key has expired (age: %d days, max: %d days). Use --force to rotate anyway",
@@ -631,13 +645,13 @@ func (s *SopsManager) checkKeyExpiry(member *Member, maxAgeDays int) error {
 }
 
 // CheckKeyExpiry checks if any keys are expired or expiring soon
-func (s *SopsManager) CheckKeyExpiry(verbose bool) error {
+func (s *SopsManager) CheckKeyExpiry(verbose bool) error { //nolint:revive // verbose is a legitimate CLI flag parameter
 	manifest, err := LoadManifest(s.configPath)
 	if err != nil {
-		return fmt.Errorf("failed to load manifest: %w", err)
+		return fmt.Errorf(FailedToLoadManifestMsg, err)
 	}
 
-	maxAgeDays := max(manifest.Settings.MaxKeyAgeDays, 180) // ensure minimum of 180 days (6 months)
+	maxAgeDays := max(manifest.Settings.MaxKeyAgeDays, DefaultMaxKeyAgeDays) // ensure minimum of 180 days (6 months)
 
 	warnings := 0
 	errors := 0
@@ -660,10 +674,10 @@ func (s *SopsManager) CheckKeyExpiry(verbose bool) error {
 }
 
 // checkMemberKeyStatus checks a single member's key status and returns warnings/errors count
-func (s *SopsManager) checkMemberKeyStatus(member Member, maxAgeDays int, now time.Time, verbose bool) (int, int) {
+func (s *SopsManager) checkMemberKeyStatus(member Member, maxAgeDays int, now time.Time, verbose bool) (warnings, errors int) { //nolint:revive // verbose is a legitimate CLI flag parameter
 	age := now.Sub(member.Created)
-	maxAge := time.Duration(maxAgeDays) * 24 * time.Hour
-	warningThreshold := maxAge - (14 * 24 * time.Hour) // 2 weeks before expiry
+	maxAge := time.Duration(maxAgeDays) * HoursPerDay * time.Hour
+	warningThreshold := maxAge - (DaysInTwoWeeks * HoursPerDay * time.Hour) // 2 weeks before expiry
 
 	// Find matching private key file for verbose output
 	var keyInfo string
@@ -679,17 +693,17 @@ func (s *SopsManager) checkMemberKeyStatus(member Member, maxAgeDays int, now ti
 	switch {
 	case age > maxAge:
 		_, _ = fmt.Fprintf(s.output, "❌ %s: key expired %d days ago (created: %s)%s\n",
-			member.ID, int((age-maxAge).Hours()/24), member.Created.Format("2006-01-02"), keyInfo)
+			member.ID, int((age-maxAge).Hours()/24), member.Created.Format(DateFormat), keyInfo)
 		return 0, 1 // 0 warnings, 1 error
 	case age > warningThreshold:
 		daysUntilExpiry := int((maxAge - age).Hours() / 24)
 		_, _ = fmt.Fprintf(s.output, "⚠️  %s: key expires in %d days (created: %s)%s\n",
-			member.ID, daysUntilExpiry, member.Created.Format("2006-01-02"), keyInfo)
+			member.ID, daysUntilExpiry, member.Created.Format(DateFormat), keyInfo)
 		return 1, 0 // 1 warning, 0 errors
 	default:
 		daysAge := int(age.Hours() / 24)
 		_, _ = fmt.Fprintf(s.output, "✅ %s: key is %d days old (created: %s)%s\n",
-			member.ID, daysAge, member.Created.Format("2006-01-02"), keyInfo)
+			member.ID, daysAge, member.Created.Format(DateFormat), keyInfo)
 		return 0, 0 // 0 warnings, 0 errors
 	}
 }

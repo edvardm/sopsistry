@@ -13,8 +13,8 @@ var listCmd = &cobra.Command{
 - Encrypted files under management
 - Current scope assignments`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		sopsPath, _ := cmd.Flags().GetString("sops-path")
-		jsonOutput, _ := cmd.Flags().GetBool("json")
+		sopsPath, _ := cmd.Flags().GetString("sops-path") //nolint:errcheck // Flag is defined, error impossible
+		jsonOutput, _ := cmd.Flags().GetBool("json")      //nolint:errcheck // Flag is defined, error impossible
 
 		service := core.NewSopsManager(sopsPath)
 		return service.List(jsonOutput)

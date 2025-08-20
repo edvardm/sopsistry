@@ -18,12 +18,12 @@ const (
 )
 
 // Action represents a single planned action
-type Action struct {
-	Type        ActionType `json:"type"`
+type Action struct { //nolint:govet // Field alignment optimization not critical for this struct
+	Recipients  []string   `json:"recipients"`
 	File        string     `json:"file"`
 	Scope       string     `json:"scope"`
-	Recipients  []string   `json:"recipients"`
 	Description string     `json:"description"`
+	Type        ActionType `json:"type"`
 }
 
 // Plan contains all planned actions
@@ -78,7 +78,7 @@ func (p *Planner) planScopeActions(scope Scope, manifest *Manifest) ([]Action, e
 }
 
 func (p *Planner) createSkipActions(files []string, scopeName string) []Action {
-	actions := make([]Action, 0, 32)
+	actions := make([]Action, 0, DefaultSliceCapacity)
 	for _, file := range files {
 		actions = append(actions, Action{
 			Type:        ActionSkip,
@@ -92,7 +92,7 @@ func (p *Planner) createSkipActions(files []string, scopeName string) []Action {
 }
 
 func (p *Planner) extractAgeKeys(members []Member) []string {
-	recipients := make([]string, 0, 32)
+	recipients := make([]string, 0, DefaultSliceCapacity)
 	for _, member := range members {
 		recipients = append(recipients, member.AgeKey)
 	}
@@ -100,7 +100,7 @@ func (p *Planner) extractAgeKeys(members []Member) []string {
 }
 
 func (p *Planner) createFileActions(files []string, scopeName string, recipients []string) []Action {
-	actions := make([]Action, 0, 32)
+	actions := make([]Action, 0, DefaultSliceCapacity)
 	for _, file := range files {
 		actionType := ActionEncrypt
 		description := "Encrypt with current team"
@@ -140,19 +140,23 @@ func (p *Plan) displayHeader() {
 func (p *Plan) displayActions(noColor bool) {
 	for _, action := range p.Actions {
 		prefix := p.getActionPrefix(action.Type, noColor)
-		p.displayAction(action, prefix)
+		p.displayAction(&action, prefix)
 	}
 }
 
-func (p *Plan) getActionPrefix(actionType ActionType, noColor bool) string {
-	if !noColor {
-		return p.getColoredPrefix(actionType)
-	}
-	return p.getPlainPrefix(actionType)
+// ActionDisplay provides type-safe display formatting for actions
+type ActionDisplay struct {
+	actionType ActionType
 }
 
-func (p *Plan) getColoredPrefix(actionType ActionType) string {
-	switch actionType {
+// NewActionDisplay creates a type-safe display formatter for the given action type
+func NewActionDisplay(actionType ActionType) ActionDisplay {
+	return ActionDisplay{actionType: actionType}
+}
+
+// ColoredFormat returns the ANSI-formatted display symbol for this action type
+func (a ActionDisplay) ColoredFormat() string {
+	switch a.actionType {
 	case ActionEncrypt:
 		return "\033[32m+\033[0m" // Green +
 	case ActionReencrypt:
@@ -164,8 +168,9 @@ func (p *Plan) getColoredPrefix(actionType ActionType) string {
 	}
 }
 
-func (p *Plan) getPlainPrefix(actionType ActionType) string {
-	switch actionType {
+// PlainFormat returns the plain text display symbol for this action type
+func (a ActionDisplay) PlainFormat() string {
+	switch a.actionType {
 	case ActionEncrypt:
 		return "+"
 	case ActionReencrypt:
@@ -177,7 +182,15 @@ func (p *Plan) getPlainPrefix(actionType ActionType) string {
 	}
 }
 
-func (p *Plan) displayAction(action Action, prefix string) {
+func (p *Plan) getActionPrefix(actionType ActionType, noColor bool) string { //nolint:revive // noColor is a legitimate CLI flag parameter
+	display := NewActionDisplay(actionType)
+	if noColor {
+		return display.PlainFormat()
+	}
+	return display.ColoredFormat()
+}
+
+func (p *Plan) displayAction(action *Action, prefix string) { //nolint:gocritic // Passing by pointer for performance
 	fmt.Printf("%s %s (%s): %s\n",
 		prefix, action.File, action.Scope, action.Description)
 

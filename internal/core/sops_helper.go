@@ -26,8 +26,18 @@ func NewSOPSHelper(sopsPath, secretsDir string) *SOPSHelper {
 	}
 }
 
-// ShowCommand displays or executes a SOPS command with proper environment
-func (h *SOPSHelper) ShowCommand(args []string, ageKeys []string, execute bool) error {
+// ShowCommand displays a SOPS command with proper environment variables
+func (h *SOPSHelper) ShowCommand(args, ageKeys []string) error {
+	return h.processCommand(args, ageKeys, false)
+}
+
+// ExecuteCommand executes a SOPS command with proper environment
+func (h *SOPSHelper) ExecuteCommand(args, ageKeys []string) error {
+	return h.processCommand(args, ageKeys, true)
+}
+
+// processCommand handles the common logic for showing or executing SOPS commands
+func (h *SOPSHelper) processCommand(args, ageKeys []string, execute bool) error { //nolint:revive // execute is internal implementation detail
 	keyPath := filepath.Join(h.secretsDir, "key.txt")
 	ageRecipients := strings.Join(ageKeys, ",")
 

@@ -18,11 +18,14 @@ Examples:
 
 You can copy and run the displayed command directly.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		sopsPath, _ := cmd.Flags().GetString("sops-path")
-		execute, _ := cmd.Flags().GetBool("exec")
+		sopsPath, _ := cmd.Flags().GetString("sops-path") //nolint:errcheck // Flag is defined, error impossible
+		execute, _ := cmd.Flags().GetBool("exec")         //nolint:errcheck // Flag is defined, error impossible
 
 		service := core.NewSopsManager(sopsPath)
-		return service.ShowSOPSCommand(args, execute)
+		if execute {
+			return service.ExecuteSOPSCommand(args)
+		}
+		return service.ShowSOPSCommand(args)
 	},
 }
 

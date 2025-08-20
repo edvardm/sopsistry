@@ -14,8 +14,8 @@ By default outputs to stdout. Use --in-place to decrypt the file directly.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		filePath := args[0]
-		sopsPath, _ := cmd.Flags().GetString("sops-path")
-		inPlace, _ := cmd.Flags().GetBool("in-place")
+		sopsPath, _ := cmd.Flags().GetString("sops-path") //nolint:errcheck // Flag is defined, error impossible
+		inPlace, _ := cmd.Flags().GetBool("in-place")     //nolint:errcheck // Flag is defined, error impossible
 
 		service := core.NewSopsManager(sopsPath)
 		return service.DecryptFile(filePath, inPlace)

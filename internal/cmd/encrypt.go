@@ -22,10 +22,10 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		filePath := args[0]
-		sopsPath, _ := cmd.Flags().GetString("sops-path")
-		inPlace, _ := cmd.Flags().GetBool("in-place")
-		regex, _ := cmd.Flags().GetString("regex")
-		iregex, _ := cmd.Flags().GetString("iregex")
+		sopsPath, _ := cmd.Flags().GetString("sops-path") //nolint:errcheck // Flag is defined, error impossible
+		inPlace, _ := cmd.Flags().GetBool("in-place")     //nolint:errcheck // Flag is defined, error impossible
+		regex, _ := cmd.Flags().GetString("regex")        //nolint:errcheck // Flag is defined, error impossible
+		iregex, _ := cmd.Flags().GetString("iregex")      //nolint:errcheck // Flag is defined, error impossible
 
 		// Check that only one of regex or iregex is provided
 		if regex != "" && iregex != "" {

@@ -11,9 +11,9 @@ import (
 
 // Member represents a team member with their age key
 type Member struct {
+	Created time.Time `yaml:"created" json:"created"`
 	ID      string    `yaml:"id" json:"id"`
 	AgeKey  string    `yaml:"age_key" json:"age_key"`
-	Created time.Time `yaml:"created" json:"created"`
 }
 
 // Scope defines which files are encrypted for which members
@@ -58,7 +58,7 @@ func (m *Manifest) Save(path string) error {
 		return fmt.Errorf("failed to marshal manifest: %w", err)
 	}
 
-	if err := os.WriteFile(path, data, 0o644); err != nil { //nolint:gosec // Config files use standard permissions
+	if err := os.WriteFile(path, data, GitignoreFileMode); err != nil { //nolint:gosec // Config files use standard permissions
 		return fmt.Errorf("failed to write manifest: %w", err)
 	}
 
