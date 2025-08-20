@@ -80,7 +80,7 @@ func (info *SOPSConfigInfo) GetWarningMessage() string {
 		warnings = append(warnings, "   • Contains PGP keys (consider using sops directly for these files)")
 	}
 
-	warnings = append(warnings, EmptyString, "💡 Options:", "   • Use 'sops' directly for files managed by .sops.yaml", "   • Remove/rename .sops.yaml for full team management", "   • Continue anyway (team settings will be used)")
+	warnings = append(warnings, "", "💡 Options:", "   • Use 'sops' directly for files managed by .sops.yaml", "   • Remove/rename .sops.yaml for full team management", "   • Continue anyway (team settings will be used)")
 
 	return strings.Join(warnings, "\n")
 }

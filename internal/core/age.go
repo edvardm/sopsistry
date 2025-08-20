@@ -16,7 +16,7 @@ func (s *SopsManager) generateAgeKey(keyPath string) (string, error) {
 	cmd := exec.Command(AgeKeygenBinary)
 	output, err := cmd.Output()
 	if err != nil {
-		return EmptyString, fmt.Errorf("failed to generate age key: %w", err)
+		return "", fmt.Errorf("failed to generate age key: %w", err)
 	}
 
 	lines := strings.Split(string(output), "\n")
@@ -32,12 +32,12 @@ func (s *SopsManager) generateAgeKey(keyPath string) (string, error) {
 		}
 	}
 
-	if privateKey == EmptyString || publicKey == EmptyString {
-		return EmptyString, fmt.Errorf("failed to parse age-keygen output")
+	if privateKey == "" || publicKey == "" {
+		return "", fmt.Errorf("failed to parse age-keygen output")
 	}
 
 	if err := os.WriteFile(keyPath, []byte(privateKey+"\n"), PrivateKeyFileMode); err != nil {
-		return EmptyString, fmt.Errorf("failed to write private key: %w", err)
+		return "", fmt.Errorf("failed to write private key: %w", err)
 	}
 
 	fmt.Printf("Generated age key pair:\n")
@@ -55,12 +55,12 @@ func (s *SopsManager) getPublicKeyFromPrivateKey(keyPath string) (string, error)
 	cmd := exec.Command(AgeKeygenBinary, "-y", keyPath)
 	output, err := cmd.Output()
 	if err != nil {
-		return EmptyString, fmt.Errorf("failed to extract public key from %s: %w", keyPath, err)
+		return "", fmt.Errorf("failed to extract public key from %s: %w", keyPath, err)
 	}
 
 	publicKey := strings.TrimSpace(string(output))
-	if publicKey == EmptyString {
-		return EmptyString, fmt.Errorf("failed to extract public key from %s", keyPath)
+	if publicKey == "" {
+		return "", fmt.Errorf("failed to extract public key from %s", keyPath)
 	}
 
 	return publicKey, nil

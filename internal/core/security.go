@@ -8,35 +8,20 @@ import (
 
 // File and directory permissions
 const (
-	// DefaultSOPSBinary is the default name/path for the SOPS binary
 	DefaultSOPSBinary = "sops"
+	AgeKeygenBinary   = "age-keygen"
 
-	// AgeKeygenBinary is the name of the age-keygen binary
-	AgeKeygenBinary = "age-keygen"
-
-	// File permissions
 	PrivateKeyFileMode = 0o600 // Read/write for owner only
 	BackupDirMode      = 0o700 // Read/write/execute for owner only
 	GitignoreFileMode  = 0o644 // Read/write for owner, read for group/others
 
-	// Empty string constant to avoid repeated string literals
-	EmptyString = ""
-
-	// Time-related constants
-	HoursPerDay    = 24
-	DaysInTwoWeeks = 14
-
-	// Slice capacity hints for performance
+	HoursPerDay          = 24
 	DefaultSliceCapacity = 32
 
-	// Date format
-	DateFormat = "2006-01-02"
-
-	// Common error messages
+	DateFormat              = "2006-01-02"
 	FailedToLoadManifestMsg = "failed to load manifest: %w"
 
-	// Default key age settings (days)
-	DefaultMaxKeyAgeDays = 180 // 6 months
+	DefaultMaxKeyAgeDays = 180
 )
 
 // ValidSOPSPath represents a validated and safe SOPS executable path

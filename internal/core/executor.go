@@ -15,7 +15,7 @@ type Executor struct {
 
 // NewExecutor creates a new executor instance
 func NewExecutor(sopsPath string) *Executor {
-	if sopsPath == EmptyString {
+	if sopsPath == "" {
 		sopsPath = "sops"
 	}
 	cleanPath := filepath.Clean(sopsPath)

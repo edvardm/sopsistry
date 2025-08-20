@@ -23,7 +23,7 @@ type Encryptor struct {
 
 // NewEncryptor creates a new encryptor instance with the given SOPS binary path
 func NewEncryptor(sopsPath string) *Encryptor {
-	if sopsPath == EmptyString {
+	if sopsPath == "" {
 		sopsPath = DefaultSOPSBinary
 	}
 	cleanPath := filepath.Clean(sopsPath)
@@ -102,7 +102,7 @@ func (e *Encryptor) buildSOPSArgs(filePath string, inPlace bool, regex string) [
 	if inPlace {
 		args = append(args, "--in-place")
 	}
-	if regex != EmptyString {
+	if regex != "" {
 		args = append(args, "--encrypted-regex", regex)
 	}
 	args = append(args, filePath)
@@ -111,7 +111,7 @@ func (e *Encryptor) buildSOPSArgs(filePath string, inPlace bool, regex string) [
 
 func (e *Encryptor) displayEncryptionResult(filePath string, inPlace bool, regex string, output []byte) { //nolint:revive // inPlace is a legitimate CLI flag parameter
 	if inPlace {
-		if regex != EmptyString {
+		if regex != "" {
 			fmt.Printf("🔒 Encrypted %s (partial: %s)\n", filePath, regex)
 		} else {
 			fmt.Printf("🔒 Encrypted %s (full file)\n", filePath)
@@ -129,7 +129,7 @@ type Decryptor struct {
 // NewDecryptor creates a new decryptor instance
 func NewDecryptor(sopsPath string) *Decryptor {
 	// Validate and clean the sops path for security
-	if sopsPath == EmptyString {
+	if sopsPath == "" {
 		sopsPath = DefaultSOPSBinary
 	}
 	// Clean the path to prevent injection

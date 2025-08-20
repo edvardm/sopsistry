@@ -19,6 +19,8 @@ type SopsManager struct { //nolint:govet // Field alignment optimization not cri
 	output     io.Writer
 }
 
+const warningThresholdHours = 14 * 24 * time.Hour
+
 // NewSopsManager creates a new SOPS manager instance
 func NewSopsManager(sopsPath string) *SopsManager {
 	return &SopsManager{
@@ -109,7 +111,7 @@ func (s *SopsManager) setupAgeKey() (string, error) {
 		return "", err
 	}
 
-	if existingKey != EmptyString {
+	if existingKey != "" {
 		_, _ = fmt.Fprintf(s.output, "Using existing age key at %s\n", existingKey)
 		return publicKey, nil
 	}
@@ -160,7 +162,7 @@ func (s *SopsManager) findKeyForPublicKey(targetPublicKey string) (string, error
 		}
 	}
 
-	return EmptyString, fmt.Errorf("no private key found for public key %s", targetPublicKey)
+	return "", fmt.Errorf("no private key found for public key %s", targetPublicKey)
 }
 
 // generateNewAgeKey creates a new age key with private-key-based naming
@@ -169,7 +171,7 @@ func (s *SopsManager) generateNewAgeKey() (string, error) {
 	tempKeyPath := filepath.Join(s.secretsDir, "temp-key.txt")
 	publicKey, err := s.generateAgeKey(tempKeyPath)
 	if err != nil {
-		return EmptyString, err
+		return "", err
 	}
 
 	// Read private key content for hashing
@@ -191,7 +193,7 @@ func (s *SopsManager) generateNewAgeKey() (string, error) {
 
 func (s *SopsManager) getCurrentMemberID() (string, error) {
 	// Check for override env var first
-	if envUserID := os.Getenv("SOPSISTRY_USER_ID"); envUserID != EmptyString {
+	if envUserID := os.Getenv("SOPSISTRY_USER_ID"); envUserID != "" {
 		return envUserID, nil
 	}
 
@@ -202,7 +204,7 @@ func (s *SopsManager) getCurrentMemberID() (string, error) {
 	}
 
 	memberID := currentUser.Username
-	if memberID == EmptyString {
+	if memberID == "" {
 		memberID = "me"
 	}
 	return memberID, nil
@@ -443,7 +445,7 @@ func (s *SopsManager) DecryptFile(filePath string, inPlace bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to find decryption key: %w", err)
 	}
-	if keyPath == EmptyString {
+	if keyPath == "" {
 		return fmt.Errorf("no private key found in %s", s.secretsDir)
 	}
 
@@ -662,7 +664,7 @@ func (s *SopsManager) CheckKeyExpiry(verbose bool) error {
 func (s *SopsManager) checkMemberKeyStatus(member Member, maxAgeDays int, now time.Time, verbose bool) (warnings, errors int) { //nolint:revive // verbose is a legitimate CLI flag parameter
 	age := now.Sub(member.Created)
 	maxAge := time.Duration(maxAgeDays) * HoursPerDay * time.Hour
-	warningThreshold := maxAge - (DaysInTwoWeeks * HoursPerDay * time.Hour) // 2 weeks before expiry
+	warningThreshold := maxAge - warningThresholdHours
 
 	// Find matching private key file for verbose output
 	var keyInfo string

@@ -22,7 +22,7 @@ func (s *SopsManager) checkGitClean() error {
 		return fmt.Errorf("failed to check git status: %w", err)
 	}
 
-	if strings.TrimSpace(string(output)) != EmptyString {
+	if strings.TrimSpace(string(output)) != "" {
 		return fmt.Errorf("git working tree is not clean. Commit or stash changes first, or use --force")
 	}
 
@@ -83,8 +83,8 @@ func (s *SopsManager) addSecretsToGitignore(gitignorePath string, lines []string
 }
 
 func (s *SopsManager) appendSecretsEntry(lines []string) []string {
-	if len(lines) > 0 && lines[len(lines)-1] != EmptyString {
-		lines = append(lines, EmptyString)
+	if len(lines) > 0 && lines[len(lines)-1] != "" {
+		lines = append(lines, "")
 	}
 	lines = append(lines, "# SOPS team private keys", ".secrets")
 	return lines
